@@ -272,6 +272,142 @@ class IntegratedSelfReasoningChatbot:
         logger.info(f"Domain assessment complete: {risk_level}, {triggered_count} rules triggered")
         return result
     
+    # ──────────────────────────────────────────────────────────────────
+    #  Context-aware extraction
+    # ──────────────────────────────────────────────────────────────────
+    # When the chatbot has just asked for a specific field, the patient
+    # often replies with a short / partial answer that the field-agnostic
+    # NER pipeline cannot parse on its own ("كلا", "120", "Chol 310",
+    # "نبضات قلبي 120"). This helper interprets such an answer in the
+    # context of the asked field so the conversation does not loop on
+    # the same question.
+    _YES_WORDS = {
+        'نعم', 'أيوا', 'أيوة', 'أيوه', 'اي', 'إي', 'بلى', 'يوجد',
+        'موجود', 'أعاني', 'صحيح', 'yes', 'y', 'yeah', 'yep', 'true',
+    }
+    _NO_WORDS = {
+        'لا', 'كلا', 'كلّا', 'مافي', 'ما في', 'ما يوجد', 'ما عندي',
+        'ما أعاني', 'لا أعاني', 'لا يوجد', 'لا أشكي', 'no', 'n',
+        'nope', 'never', 'false',
+    }
+    _NORMAL_WORDS = {'طبيعي', 'عادي', 'سليم', 'بخير', 'normal', 'fine', 'healthy', 'ok'}
+
+    @classmethod
+    def _has_word(cls, text_lower: str, words) -> bool:
+        return any(w in text_lower for w in words)
+
+    def _smart_extract_for_field(self, field_name: str, raw_text: str):
+        """Try to interpret `raw_text` as an answer to a question about
+        `field_name`. Returns the extracted value, or None if nothing
+        could be confidently inferred.
+        """
+        import re as _re
+        if not raw_text:
+            return None
+        text = str(raw_text).strip()
+        text_lower = text.lower()
+
+        # --- NUMERIC FIELDS: pull the first number out ---
+        if field_name in ('Age', 'Cholesterol', 'MaxHR'):
+            m = _re.search(r'\d{1,4}', text)
+            if m:
+                try:
+                    return int(m.group(0))
+                except ValueError:
+                    pass
+            if self._has_word(text_lower, self._NORMAL_WORDS):
+                # Sensible normal defaults
+                return {'Age': 35, 'Cholesterol': 180, 'MaxHR': 150}[field_name]
+            return None
+
+        if field_name == 'Oldpeak':
+            m = _re.search(r'\d+(?:\.\d+)?', text)
+            if m:
+                try:
+                    return float(m.group(0))
+                except ValueError:
+                    pass
+            if self._has_word(text_lower, self._NORMAL_WORDS):
+                return 0.0
+            return None
+
+        if field_name == 'BloodPressure':
+            # "140/90", "140 على 90", or single number → assume diastolic = sys−40
+            m = _re.search(r'(\d{2,3})\s*[/على\\\-]+\s*(\d{2,3})', text)
+            if m:
+                return f"{int(m.group(1))}/{int(m.group(2))}"
+            m = _re.search(r'\d{2,3}', text)
+            if m:
+                sys_v = int(m.group(0))
+                if 80 <= sys_v <= 220:
+                    return f"{sys_v}/{max(60, sys_v - 40)}"
+            if self._has_word(text_lower, self._NORMAL_WORDS):
+                return "120/80"
+            return None
+
+        # --- YES / NO STYLE FIELDS ---
+        if field_name == 'ExerciseAngina':
+            if self._has_word(text_lower, self._NO_WORDS):
+                return 'N'
+            if self._has_word(text_lower, self._YES_WORDS):
+                return 'Y'
+            if self._has_word(text_lower, self._NORMAL_WORDS):
+                return 'N'
+            return None
+
+        if field_name == 'FastingBS':
+            if self._has_word(text_lower, ('مرتفع', 'عالي', 'عالية', 'high', 'سكري', 'diabetic')):
+                return 1
+            if self._has_word(text_lower, self._NORMAL_WORDS) or self._has_word(text_lower, self._NO_WORDS):
+                return 0
+            m = _re.search(r'\d{2,3}', text)
+            if m:
+                return 1 if int(m.group(0)) > 120 else 0
+            return None
+
+        # --- CATEGORICAL FIELDS ---
+        if field_name == 'ChestPain':
+            if self._has_word(text_lower, self._NO_WORDS) or self._has_word(text_lower, self._NORMAL_WORDS):
+                return 'ASY'  # No pain / chest is fine
+            if 'asy' in text_lower or 'asymptomatic' in text_lower or 'بدون أعراض' in text:
+                return 'ASY'
+            if 'ata' in text_lower or 'غير نموذجي' in text or 'atypical' in text_lower:
+                return 'ATA'
+            if 'nap' in text_lower or 'غير ذبحة' in text or 'non-anginal' in text_lower:
+                return 'NAP'
+            if 'ta' in text_lower or 'نموذجي' in text or 'typical' in text_lower or 'angina' in text_lower:
+                return 'TA'
+            if 'ألم' in text or 'pain' in text_lower or 'يوجعني' in text:
+                return 'TA'
+            return None
+
+        if field_name == 'RestingECG':
+            if self._has_word(text_lower, self._NORMAL_WORDS) or self._has_word(text_lower, self._NO_WORDS):
+                return 'Normal'
+            if 'lvh' in text_lower or 'تضخم' in text:
+                return 'LVH'
+            if 'st' in text_lower or 'موجة' in text or 'اضطراب' in text:
+                return 'ST'
+            return None
+
+        if field_name == 'ST_Slope':
+            if 'up' in text_lower or 'صاعد' in text or 'مرتفع' in text:
+                return 'Up'
+            if 'down' in text_lower or 'هابط' in text or 'منحدر' in text:
+                return 'Down'
+            if 'flat' in text_lower or 'مسطح' in text or self._has_word(text_lower, self._NORMAL_WORDS):
+                return 'Flat'
+            return None
+
+        if field_name == 'Sex':
+            if 'female' in text_lower or 'أنثى' in text or 'امرأة' in text or text_lower.strip() == 'f':
+                return 'Female'
+            if 'male' in text_lower or 'ذكر' in text or 'رجل' in text or text_lower.strip() == 'm':
+                return 'Male'
+            return None
+
+        return None
+
     def _normalize_value(self, field_name: str, value):
         """
         تطبيع القيمة - تحويل الأرقام من string إلى int/float
@@ -503,6 +639,18 @@ class IntegratedSelfReasoningChatbot:
         """
         logger.info(f"Smart input processing: '{text[:60]}...'")
 
+        # === الخطوة 0: تفسير سياقي للسؤال المطروح ===
+        # If the previous turn asked for a specific field, try a smart
+        # context-aware interpretation first. This catches short replies
+        # like "كلا", "120", "Chol 310" that the generic NER may miss.
+        context_extracted = {}
+        last_asked = getattr(self, '_last_asked_field', None)
+        if last_asked and last_asked not in self.answered_fields:
+            ctx_value = self._smart_extract_for_field(last_asked, text)
+            if ctx_value is not None:
+                context_extracted[last_asked] = ctx_value
+                logger.info(f"Context-aware extraction: {last_asked} = {ctx_value}")
+
         # === الخطوة 1: استخراج الحقول ===
         # Try Groq NER first
         groq_extracted = self.groq_ner.extract(text)
@@ -510,14 +658,20 @@ class IntegratedSelfReasoningChatbot:
         # Try BioBERT as supplement/fallback
         biobert_extracted = self.biobert_ner.extract_entities(text)
 
-        # Merge: Groq takes precedence, BioBERT fills gaps
+        # Merge: context > Groq > BioBERT, then fill gaps
         merged_extracted = {}
-        all_fields = set(list(groq_extracted.keys()) + list(biobert_extracted.keys()))
+        all_fields = set(
+            list(context_extracted.keys())
+            + list(groq_extracted.keys())
+            + list(biobert_extracted.keys())
+        )
 
         for field in all_fields:
             if field in self.answered_fields:
                 continue  # Skip already answered
-            if field in groq_extracted:
+            if field in context_extracted:
+                merged_extracted[field] = context_extracted[field]
+            elif field in groq_extracted:
                 merged_extracted[field] = groq_extracted[field]
             elif field in biobert_extracted:
                 merged_extracted[field] = biobert_extracted[field]
@@ -573,6 +727,10 @@ class IntegratedSelfReasoningChatbot:
         if priorities:
             next_field = priorities[0].field_name
             next_question_classic = self._select_next_question(priorities)
+
+        # Remember which field the chatbot is about to ask for, so the
+        # next turn can interpret short answers in this context.
+        self._last_asked_field = next_field
 
         # === الخطوة 5: Warning check ===
         warning = None
