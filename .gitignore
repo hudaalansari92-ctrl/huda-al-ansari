@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+.idea/
+sessions/
+auth/users.json
+.streamlit/secrets.toml

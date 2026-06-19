@@ -1,0 +1,20 @@
+{
+  "model_name": "ensemble_ready",
+  "timestamp": "20250707_160337",
+  "model_architecture": "ensemble_ready",
+  "total_params": 79809,
+  "input_shape": [
+    null,
+    59
+  ],
+  "output_shape": [
+    null,
+    1
+  ],
+  "num_features": 59,
+  "training_epochs": 50,
+  "final_train_loss": 0.058999232947826385,
+  "final_val_loss": 0.6371217966079712,
+  "final_train_accuracy": 0.9785714149475098,
+  "final_val_accuracy": 0.7872340679168701
+}

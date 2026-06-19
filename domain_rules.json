@@ -1,0 +1,993 @@
+{
+  "timestamp": "2026-01-01T22:43:24.836490",
+  "model_type": "Domain Features Inference Engine",
+  "model_configuration": {
+    "optimal_threshold": 0.23500000000000007,
+    "total_rules": 48,
+    "binary_features": 31,
+    "continuous_features": 9,
+    "feature_thresholds": {
+      "age_risk_score": {
+        "threshold": 1.0408163265306123,
+        "direction": "high"
+      },
+      "predicted_max_hr": {
+        "threshold": 168.46938775510205,
+        "direction": "low"
+      },
+      "hr_reserve_ratio": {
+        "threshold": 0.8297674613967017,
+        "direction": "low"
+      },
+      "hr_reserve": {
+        "threshold": 33.64489795918368,
+        "direction": "low"
+      },
+      "framingham_risk_score": {
+        "threshold": 2.0,
+        "direction": "high"
+      },
+      "age_cholesterol_norm": {
+        "threshold": 0.41597142857142855,
+        "direction": "high"
+      },
+      "age_bp_norm": {
+        "threshold": 0.3497142857142857,
+        "direction": "high"
+      },
+      "cholesterol_bp_norm": {
+        "threshold": 0.4799387755102041,
+        "direction": "high"
+      },
+      "chest_pain_severity": {
+        "threshold": 0.0,
+        "direction": "low"
+      }
+    }
+  },
+  "data_statistics": {
+    "raw_data": {
+      "total_records": 701,
+      "binary_features": 31,
+      "continuous_features": 9,
+      "low_risk": 252,
+      "high_risk": 449,
+      "class_balance": 0.6405135520684736
+    },
+    "eda": {
+      "binary": {
+        "age_very_young": {
+          "low_risk_rate": 0.006622516556291391,
+          "high_risk_rate": 0.0,
+          "difference": -0.006622516556291391,
+          "correlation": -0.06520496330952648,
+          "importance": 0.0004318209490697118
+        },
+        "age_young": {
+          "low_risk_rate": 0.4105960264900662,
+          "high_risk_rate": 0.06691449814126393,
+          "difference": -0.3436815283488023,
+          "correlation": -0.4199874882480471,
+          "importance": 0.14434194184846347
+        },
+        "age_middle": {
+          "low_risk_rate": 0.4966887417218543,
+          "high_risk_rate": 0.5464684014869888,
+          "difference": 0.04977965976513454,
+          "correlation": 0.04785281108689033,
+          "importance": 0.0023820966547106587
+        },
+        "age_senior": {
+          "low_risk_rate": 0.08609271523178808,
+          "high_risk_rate": 0.3828996282527881,
+          "difference": 0.29680691302100004,
+          "correlation": 0.3185465011492515,
+          "importance": 0.09454680365974977
+        },
+        "age_elderly": {
+          "low_risk_rate": 0.0,
+          "high_risk_rate": 0.0037174721189591076,
+          "difference": 0.0037174721189591076,
+          "correlation": 0.03660204260125872,
+          "importance": 0.00013606707286713276
+        },
+        "cholesterol_optimal": {
+          "low_risk_rate": 0.2119205298013245,
+          "high_risk_rate": 0.08178438661710037,
+          "difference": -0.13013614318422412,
+          "correlation": -0.1865628306577437,
+          "importance": 0.02427856724333029
+        },
+        "cholesterol_borderline": {
+          "low_risk_rate": 0.5165562913907285,
+          "high_risk_rate": 0.25650557620817843,
+          "difference": -0.26005071518255,
+          "correlation": -0.2616270686375234,
+          "importance": 0.06803630631030205
+        },
+        "cholesterol_high": {
+          "low_risk_rate": 0.271523178807947,
+          "high_risk_rate": 0.6617100371747212,
+          "difference": 0.3901868583667742,
+          "correlation": 0.37481517494878047,
+          "importance": 0.1462479555814575
+        },
+        "cholesterol_very_high": {
+          "low_risk_rate": 0.06622516556291391,
+          "high_risk_rate": 0.13382899628252787,
+          "difference": 0.06760383071961396,
+          "correlation": 0.10387743142790545,
+          "importance": 0.007022512289840427
+        },
+        "bp_normal": {
+          "low_risk_rate": 0.31125827814569534,
+          "high_risk_rate": 0.10037174721189591,
+          "difference": -0.21088653093379944,
+          "correlation": -0.26561925064613745,
+          "importance": 0.05601552231799929
+        },
+        "bp_elevated": {
+          "low_risk_rate": 0.36423841059602646,
+          "high_risk_rate": 0.21561338289962825,
+          "difference": -0.1486250276963982,
+          "correlation": -0.16082299760023047,
+          "importance": 0.023902322472552036
+        },
+        "bp_stage1": {
+          "low_risk_rate": 0.24503311258278146,
+          "high_risk_rate": 0.15985130111524162,
+          "difference": -0.08518181146753984,
+          "correlation": -0.1040943201531684,
+          "importance": 0.008866942754128923
+        },
+        "bp_stage2": {
+          "low_risk_rate": 0.07947019867549669,
+          "high_risk_rate": 0.5241635687732342,
+          "difference": 0.4446933700977375,
+          "correlation": 0.44342882629461544,
+          "importance": 0.1971898591634368
+        },
+        "bp_crisis": {
+          "low_risk_rate": 0.006622516556291391,
+          "high_risk_rate": 0.03345724907063197,
+          "difference": 0.026834732514340577,
+          "correlation": 0.08446367156824297,
+          "importance": 0.0022665600337129135
+        },
+        "exercise_poor": {
+          "low_risk_rate": 0.033112582781456956,
+          "high_risk_rate": 0.07806691449814127,
+          "difference": 0.04495433171668431,
+          "correlation": 0.08951614573360296,
+          "importance": 0.004024138509307443
+        },
+        "exercise_fair": {
+          "low_risk_rate": 0.304635761589404,
+          "high_risk_rate": 0.379182156133829,
+          "difference": 0.07454639454442502,
+          "correlation": 0.0748817434611985,
+          "importance": 0.005582163992232922
+        },
+        "exercise_good": {
+          "low_risk_rate": 0.2847682119205298,
+          "high_risk_rate": 0.21933085501858737,
+          "difference": -0.06543735690194244,
+          "correlation": -0.07322792314915531,
+          "importance": 0.004791841742299289
+        },
+        "exercise_excellent": {
+          "low_risk_rate": 0.37748344370860926,
+          "high_risk_rate": 0.32342007434944237,
+          "difference": -0.05406336935916689,
+          "correlation": -0.054655256278486636,
+          "importance": 0.002954847307603748
+        },
+        "male_high_risk": {
+          "low_risk_rate": 0.304635761589404,
+          "high_risk_rate": 0.8141263940520446,
+          "difference": 0.5094906324626406,
+          "correlation": 0.5066546478305859,
+          "importance": 0.25813579696334166
+        },
+        "female_high_risk": {
+          "low_risk_rate": 0.08609271523178808,
+          "high_risk_rate": 0.08550185873605948,
+          "difference": -0.0005908564957285978,
+          "correlation": -0.0010128141622758814,
+          "importance": 5.984278267466227e-07
+        },
+        "female_postmenopausal": {
+          "low_risk_rate": 0.19205298013245034,
+          "high_risk_rate": 0.10408921933085502,
+          "difference": -0.08796376080159532,
+          "correlation": -0.12324737046769077,
+          "importance": 0.010841302215245555
+        },
+        "st_normal": {
+          "low_risk_rate": 0.6688741721854304,
+          "high_risk_rate": 0.26022304832713755,
+          "difference": -0.4086511238582929,
+          "correlation": -0.39913478858935025,
+          "importance": 0.16310687992798012
+        },
+        "st_mild": {
+          "low_risk_rate": 0.2781456953642384,
+          "high_risk_rate": 0.22676579925650558,
+          "difference": -0.0513798961077328,
+          "correlation": -0.057307253096314466,
+          "importance": 0.0029444407103081864
+        },
+        "st_moderate": {
+          "low_risk_rate": 0.046357615894039736,
+          "high_risk_rate": 0.3382899628252788,
+          "difference": 0.29193234693123904,
+          "correlation": 0.33121184406369775,
+          "importance": 0.09669145096893886
+        },
+        "st_severe": {
+          "low_risk_rate": 0.006622516556291391,
+          "high_risk_rate": 0.17472118959107807,
+          "difference": 0.16809867303478668,
+          "correlation": 0.2535343513405501,
+          "importance": 0.04261878802908186
+        },
+        "metabolic_bp": {
+          "low_risk_rate": 0.32450331125827814,
+          "high_risk_rate": 0.6840148698884758,
+          "difference": 0.3595115586301977,
+          "correlation": 0.34711925720356535,
+          "importance": 0.12479338518781025
+        },
+        "metabolic_glucose": {
+          "low_risk_rate": 0.0,
+          "high_risk_rate": 0.07434944237918216,
+          "difference": 0.07434944237918216,
+          "correlation": 0.16753183129823757,
+          "importance": 0.01245589823778718
+        },
+        "typical_angina": {
+          "low_risk_rate": 0.0,
+          "high_risk_rate": 0.0,
+          "difference": 0.0,
+          "correlation": NaN,
+          "importance": NaN
+        },
+        "asymptomatic": {
+          "low_risk_rate": 0.3708609271523179,
+          "high_risk_rate": 0.620817843866171,
+          "difference": 0.24995691671385312,
+          "correlation": 0.24035005615440874,
+          "importance": 0.06007715896835746
+        },
+        "ecg_abnormal": {
+          "low_risk_rate": 0.1986754966887417,
+          "high_risk_rate": 0.34572490706319703,
+          "difference": 0.14704941037445532,
+          "correlation": 0.15505905066785655,
+          "importance": 0.022801341973931098
+        },
+        "ecg_lvh": {
+          "low_risk_rate": 0.11920529801324503,
+          "high_risk_rate": 0.241635687732342,
+          "difference": 0.12243038971909698,
+          "correlation": 0.14753662653024993,
+          "importance": 0.018062966683939363
+        }
+      },
+      "continuous": {
+        "age_risk_score": {
+          "low_risk_mean": 0.8013245033112583,
+          "high_risk_mean": 1.7026022304832713,
+          "low_risk_std": 0.8166587826803301,
+          "high_risk_std": 0.8062447001761743,
+          "correlation": 0.4718782091719195,
+          "cohens_d": 1.1106750108383687,
+          "importance": 0.5241033350864117
+        },
+        "predicted_max_hr": {
+          "low_risk_mean": 172.71523178807948,
+          "high_risk_mean": 163.36802973977694,
+          "low_risk_std": 8.982484796123108,
+          "high_risk_std": 7.943495662640968,
+          "correlation": -0.47491948867114797,
+          "cohens_d": 1.1024048401664734,
+          "importance": 0.5235535430004602
+        },
+        "hr_reserve_ratio": {
+          "low_risk_mean": 0.8454777333881244,
+          "high_risk_mean": 0.8117923713852793,
+          "low_risk_std": 0.12842984810426597,
+          "high_risk_std": 0.15008959395359414,
+          "correlation": -0.11282371130107903,
+          "cohens_d": 0.2411606220655082,
+          "importance": 0.027208636401107527
+        },
+        "hr_reserve": {
+          "low_risk_mean": 42.47682119205299,
+          "high_risk_mean": 34.54200743494424,
+          "low_risk_std": 22.341290454249684,
+          "high_risk_std": 24.446229092657433,
+          "correlation": -0.15891299563369982,
+          "cohens_d": 0.3388423159799119,
+          "importance": 0.05384644747982847
+        },
+        "framingham_risk_score": {
+          "low_risk_mean": 1.596026490066225,
+          "high_risk_mean": 3.7323420074349443,
+          "low_risk_std": 0.6129579425161217,
+          "high_risk_std": 0.8120561348678746,
+          "correlation": 0.8089578330425415,
+          "cohens_d": 2.969464947474247,
+          "importance": 2.402171929204551
+        },
+        "age_cholesterol_norm": {
+          "low_risk_mean": 0.3590483002207505,
+          "high_risk_mean": 0.4849978686493185,
+          "low_risk_std": 0.09773775454291696,
+          "high_risk_std": 0.11259666932184277,
+          "correlation": 0.49095883445807803,
+          "cohens_d": 1.194635239666631,
+          "importance": 0.5865167248692759
+        },
+        "age_bp_norm": {
+          "low_risk_mean": 0.28975880794701986,
+          "high_risk_mean": 0.39050397769516726,
+          "low_risk_std": 0.06347756270186763,
+          "high_risk_std": 0.08413351492565707,
+          "correlation": 0.5308675655354717,
+          "cohens_d": 1.3518367269376994,
+          "importance": 0.7176462722308566
+        },
+        "cholesterol_bp_norm": {
+          "low_risk_mean": 0.46471167770419425,
+          "high_risk_mean": 0.5909109021065675,
+          "low_risk_std": 0.10171901588480865,
+          "high_risk_std": 0.14799073097265233,
+          "correlation": 0.4145709241664558,
+          "cohens_d": 0.9938485134438227,
+          "importance": 0.41202069669986385
+        },
+        "chest_pain_severity": {
+          "low_risk_mean": 0.0,
+          "high_risk_mean": 0.0,
+          "low_risk_std": 0.0,
+          "high_risk_std": 0.0,
+          "correlation": NaN,
+          "cohens_d": 0.0,
+          "importance": NaN
+        }
+      }
+    },
+    "weights": {
+      "R1": 0.02401641553961713,
+      "R2": 0.023689993569652467,
+      "R3": 0.0282419274587704,
+      "R4": 0.010534395345391202,
+      "R5": 0.025768158841257528,
+      "R6": 0.008872797254245328,
+      "R7": 0.019824471388197158,
+      "R8": 0.020164865301341754,
+      "R9": 0.015075959171586653,
+      "R10": 0.032169033735262864,
+      "R11": 0.011454697176665972,
+      "R12": 0.01548446219490459,
+      "R13": 0.021088034208922253,
+      "R14": 0.018345738924334637,
+      "R15": 0.02784912916324796,
+      "R16": 0.012223500711997789,
+      "R17": 0.02568874116944072,
+      "R18": 0.021101522058783705,
+      "R19": 0.016623578212254717,
+      "R20": 0.02951349052307274,
+      "R21": 0.031101964965313856,
+      "R22": 0.023726703195511494,
+      "R23": 0.023802102593745315,
+      "R24": 0.03921856435859872,
+      "R25": 0.03032677863328547,
+      "R26": 0.0308543972480182,
+      "R27": 0.029395280543685894,
+      "R28": 0.022996406411244816,
+      "R29": 0.015242483896808238,
+      "R30": 0.026976792872408808,
+      "R31": 0.027008537460714972,
+      "R32": 0.01953524113271359,
+      "R33": 0.02097540939415041,
+      "R34": 0.014239348773080763,
+      "R35": 0.021271693440855333,
+      "R36": 0.005585506244521944,
+      "R37": 0.025768158841257528,
+      "R38": 0.013478235884171632,
+      "R39": 0.017527337822316278,
+      "R40": 0.014306051414413327,
+      "R41": 0.013157783955897583,
+      "R42": 0.010179714091506201,
+      "R43": 0.024999885516936726,
+      "R44": 0.01566214375639522,
+      "R45": 0.02169918353301638,
+      "R46": 0.016156091939795447,
+      "R47": 0.021580622528490544,
+      "R48": 0.015496667602197929
+    }
+  },
+  "rules": [
+    {
+      "rule_id": "R1",
+      "condition": "age_middle = 1",
+      "feature_name": "age_middle",
+      "feature_type": "binary",
+      "support": 0.5285714285714286,
+      "confidence": 0.6621621621621622,
+      "lift": 1.0338591379483575,
+      "conviction": 1.0641904761904764,
+      "weight": 0.02401641553961713
+    },
+    {
+      "rule_id": "R2",
+      "condition": "age_senior = 1",
+      "feature_name": "age_senior",
+      "feature_type": "binary",
+      "support": 0.2761904761904762,
+      "confidence": 0.8879310344827587,
+      "lift": 1.386360722984233,
+      "conviction": 3.20805860805861,
+      "weight": 0.023689993569652467
+    },
+    {
+      "rule_id": "R3",
+      "condition": "cholesterol_high = 1",
+      "feature_name": "cholesterol_high",
+      "feature_type": "binary",
+      "support": 0.5214285714285715,
+      "confidence": 0.8127853881278538,
+      "lift": 1.2690329480063147,
+      "conviction": 1.920383275261324,
+      "weight": 0.0282419274587704
+    },
+    {
+      "rule_id": "R4",
+      "condition": "cholesterol_very_high = 1",
+      "feature_name": "cholesterol_very_high",
+      "feature_type": "binary",
+      "support": 0.10952380952380952,
+      "confidence": 0.782608695652174,
+      "lift": 1.2219169225796025,
+      "conviction": 1.6538095238095243,
+      "weight": 0.010534395345391202
+    },
+    {
+      "rule_id": "R5",
+      "condition": "bp_stage2=1 OR bp_crisis=1",
+      "feature_name": "bp_stage2",
+      "feature_type": "binary",
+      "support": 0.36428571428571427,
+      "confidence": 0.9215686274509803,
+      "lift": 1.4388803848677019,
+      "conviction": 4.583928571428569,
+      "weight": 0.025768158841257528
+    },
+    {
+      "rule_id": "R6",
+      "condition": "exercise_poor = 1",
+      "feature_name": "exercise_poor",
+      "feature_type": "binary",
+      "support": 0.06190476190476191,
+      "confidence": 0.8076923076923077,
+      "lift": 1.261080926508436,
+      "conviction": 1.86952380952381,
+      "weight": 0.008872797254245328
+    },
+    {
+      "rule_id": "R7",
+      "condition": "exercise_fair = 1",
+      "feature_name": "exercise_fair",
+      "feature_type": "binary",
+      "support": 0.3523809523809524,
+      "confidence": 0.6891891891891891,
+      "lift": 1.0760574701095147,
+      "conviction": 1.156728778467909,
+      "weight": 0.019824471388197158
+    },
+    {
+      "rule_id": "R8",
+      "condition": "exercise_good = 1",
+      "feature_name": "exercise_good",
+      "feature_type": "binary",
+      "support": 0.24285714285714285,
+      "confidence": 0.5784313725490197,
+      "lift": 0.9031270500765364,
+      "conviction": 0.852823920265781,
+      "weight": 0.020164865301341754
+    },
+    {
+      "rule_id": "R9",
+      "condition": "exercise_excellent = 1",
+      "feature_name": "exercise_excellent",
+      "feature_type": "binary",
+      "support": 0.34285714285714286,
+      "confidence": 0.6041666666666666,
+      "lift": 0.9433085501858737,
+      "conviction": 0.9082706766917293,
+      "weight": 0.015075959171586653
+    },
+    {
+      "rule_id": "R10",
+      "condition": "male_high_risk = 1",
+      "feature_name": "male_high_risk",
+      "feature_type": "binary",
+      "support": 0.6309523809523809,
+      "confidence": 0.8264150943396227,
+      "lift": 1.2903135301956936,
+      "conviction": 2.0711697722567295,
+      "weight": 0.032169033735262864
+    },
+    {
+      "rule_id": "R11",
+      "condition": "female_high_risk = 1",
+      "feature_name": "female_high_risk",
+      "feature_type": "binary",
+      "support": 0.08571428571428572,
+      "confidence": 0.6388888888888888,
+      "lift": 0.9975216852540273,
+      "conviction": 0.9956043956043956,
+      "weight": 0.011454697176665972
+    },
+    {
+      "rule_id": "R12",
+      "condition": "st_mild = 1",
+      "feature_name": "st_mild",
+      "feature_type": "binary",
+      "support": 0.24523809523809523,
+      "confidence": 0.5922330097087378,
+      "lift": 0.9246760746381781,
+      "conviction": 0.8816893424036282,
+      "weight": 0.01548446219490459
+    },
+    {
+      "rule_id": "R13",
+      "condition": "st_moderate = 1",
+      "feature_name": "st_moderate",
+      "feature_type": "binary",
+      "support": 0.23333333333333334,
+      "confidence": 0.9285714285714286,
+      "lift": 1.4498141263940523,
+      "conviction": 5.033333333333337,
+      "weight": 0.021088034208922253
+    },
+    {
+      "rule_id": "R14",
+      "condition": "st_severe = 1",
+      "feature_name": "st_severe",
+      "feature_type": "binary",
+      "support": 0.11428571428571428,
+      "confidence": 0.9791666666666666,
+      "lift": 1.5288104089219332,
+      "conviction": 10.0,
+      "weight": 0.018345738924334637
+    },
+    {
+      "rule_id": "R15",
+      "condition": "metabolic_bp = 1",
+      "feature_name": "metabolic_bp",
+      "feature_type": "binary",
+      "support": 0.5547619047619048,
+      "confidence": 0.7896995708154506,
+      "lift": 1.232988177481373,
+      "conviction": 1.709572400388727,
+      "weight": 0.02784912916324796
+    },
+    {
+      "rule_id": "R16",
+      "condition": "metabolic_glucose = 1",
+      "feature_name": "metabolic_glucose",
+      "feature_type": "binary",
+      "support": 0.047619047619047616,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.012223500711997789
+    },
+    {
+      "rule_id": "R17",
+      "condition": "asymptomatic = 1",
+      "feature_name": "asymptomatic",
+      "feature_type": "binary",
+      "support": 0.530952380952381,
+      "confidence": 0.7488789237668162,
+      "lift": 1.169253338223282,
+      "conviction": 1.4316751700680277,
+      "weight": 0.02568874116944072
+    },
+    {
+      "rule_id": "R18",
+      "condition": "ecg_abnormal = 1",
+      "feature_name": "ecg_abnormal",
+      "feature_type": "binary",
+      "support": 0.29285714285714287,
+      "confidence": 0.7560975609756098,
+      "lift": 1.1805240728987216,
+      "conviction": 1.4740476190476193,
+      "weight": 0.021101522058783705
+    },
+    {
+      "rule_id": "R19",
+      "condition": "ecg_lvh = 1",
+      "feature_name": "ecg_lvh",
+      "feature_type": "binary",
+      "support": 0.1976190476190476,
+      "confidence": 0.7831325301204819,
+      "lift": 1.2227348053925742,
+      "conviction": 1.6578042328042328,
+      "weight": 0.016623578212254717
+    },
+    {
+      "rule_id": "R20",
+      "condition": "age_risk_score > 1.041",
+      "feature_name": "age_risk_score",
+      "feature_type": "continuous",
+      "support": 0.46190476190476193,
+      "confidence": 0.8556701030927835,
+      "lift": 1.335990495535201,
+      "conviction": 2.490986394557823,
+      "weight": 0.02951349052307274
+    },
+    {
+      "rule_id": "R21",
+      "condition": "predicted_max_hr < 168.469",
+      "feature_name": "predicted_max_hr",
+      "feature_type": "continuous",
+      "support": 0.6071428571428571,
+      "confidence": 0.807843137254902,
+      "lift": 1.2613164224797726,
+      "conviction": 1.8709912536443154,
+      "weight": 0.031101964965313856
+    },
+    {
+      "rule_id": "R22",
+      "condition": "hr_reserve_ratio < 0.830",
+      "feature_name": "hr_reserve_ratio",
+      "feature_type": "continuous",
+      "support": 0.5095238095238095,
+      "confidence": 0.7009345794392523,
+      "lift": 1.0943959976374944,
+      "conviction": 1.2021577380952382,
+      "weight": 0.023726703195511494
+    },
+    {
+      "rule_id": "R23",
+      "condition": "hr_reserve < 33.645",
+      "feature_name": "hr_reserve",
+      "feature_type": "continuous",
+      "support": 0.4261904761904762,
+      "confidence": 0.7262569832402235,
+      "lift": 1.133932836285851,
+      "conviction": 1.313362487852284,
+      "weight": 0.023802102593745315
+    },
+    {
+      "rule_id": "R24",
+      "condition": "framingham_risk_score > 2.000",
+      "feature_name": "framingham_risk_score",
+      "feature_type": "continuous",
+      "support": 0.6404761904761904,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.03921856435859872
+    },
+    {
+      "rule_id": "R25",
+      "condition": "age_cholesterol_norm > 0.416",
+      "feature_name": "age_cholesterol_norm",
+      "feature_type": "continuous",
+      "support": 0.5333333333333333,
+      "confidence": 0.8526785714285714,
+      "lift": 1.3313197026022305,
+      "conviction": 2.44040404040404,
+      "weight": 0.03032677863328547
+    },
+    {
+      "rule_id": "R26",
+      "condition": "age_bp_norm > 0.350",
+      "feature_name": "age_bp_norm",
+      "feature_type": "continuous",
+      "support": 0.5142857142857142,
+      "confidence": 0.8842592592592593,
+      "lift": 1.3806278397356466,
+      "conviction": 3.1062857142857156,
+      "weight": 0.0308543972480182
+    },
+    {
+      "rule_id": "R27",
+      "condition": "cholesterol_bp_norm > 0.480",
+      "feature_name": "cholesterol_bp_norm",
+      "feature_type": "continuous",
+      "support": 0.669047619047619,
+      "confidence": 0.8078291814946619,
+      "lift": 1.2612946328169443,
+      "conviction": 1.8708553791887124,
+      "weight": 0.029395280543685894
+    },
+    {
+      "rule_id": "R28",
+      "condition": "male_high_risk=1 AND (bp_stage2=1 OR bp_crisis=1)",
+      "feature_name": "male_high_risk+bp_stage2",
+      "feature_type": "composite",
+      "support": 0.2619047619047619,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.022996406411244816
+    },
+    {
+      "rule_id": "R29",
+      "condition": "male_high_risk=1 AND st_normal=1",
+      "feature_name": "male_high_risk+st_normal",
+      "feature_type": "composite",
+      "support": 0.20238095238095238,
+      "confidence": 0.6588235294117647,
+      "lift": 1.0286464027990379,
+      "conviction": 1.053776683087028,
+      "weight": 0.015242483896808238
+    },
+    {
+      "rule_id": "R30",
+      "condition": "male_high_risk=1 AND cholesterol_high=1",
+      "feature_name": "male_high_risk+cholesterol_high",
+      "feature_type": "composite",
+      "support": 0.3238095238095238,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.026976792872408808
+    },
+    {
+      "rule_id": "R31",
+      "condition": "male_high_risk=1 AND metabolic_bp=1 AND NOT exercise_excellent=1",
+      "feature_name": "male_high_risk+metabolic_bp",
+      "feature_type": "composite",
+      "support": 0.38333333333333336,
+      "confidence": 0.9192546583850931,
+      "lift": 1.4352674963633425,
+      "conviction": 4.452564102564101,
+      "weight": 0.027008537460714972
+    },
+    {
+      "rule_id": "R32",
+      "condition": "male_high_risk=1 AND st_moderate=1",
+      "feature_name": "male_high_risk+st_moderate",
+      "feature_type": "composite",
+      "support": 0.1761904761904762,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.01953524113271359
+    },
+    {
+      "rule_id": "R33",
+      "condition": "male_high_risk=1 AND age_senior=1",
+      "feature_name": "male_high_risk+age_senior",
+      "feature_type": "composite",
+      "support": 0.22142857142857142,
+      "confidence": 0.946236559139785,
+      "lift": 1.4773953711476198,
+      "conviction": 6.687142857142864,
+      "weight": 0.02097540939415041
+    },
+    {
+      "rule_id": "R34",
+      "condition": "bp_stage2=1 AND st_normal=1",
+      "feature_name": "bp_stage2+st_normal",
+      "feature_type": "composite",
+      "support": 0.12142857142857143,
+      "confidence": 0.803921568627451,
+      "lift": 1.2551935272250165,
+      "conviction": 1.833571428571429,
+      "weight": 0.014239348773080763
+    },
+    {
+      "rule_id": "R35",
+      "condition": "bp_stage2=1 AND cholesterol_high=1",
+      "feature_name": "bp_stage2+cholesterol_high",
+      "feature_type": "composite",
+      "support": 0.19523809523809524,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.021271693440855333
+    },
+    {
+      "rule_id": "R36",
+      "condition": "bp_stage2=1 AND age_young=1",
+      "feature_name": "bp_stage2+age_young",
+      "feature_type": "composite",
+      "support": 0.0380952380952381,
+      "confidence": 0.625,
+      "lift": 0.9758364312267659,
+      "conviction": 0.9587301587301589,
+      "weight": 0.005585506244521944
+    },
+    {
+      "rule_id": "R37",
+      "condition": "bp_stage2=1 AND metabolic_bp=1",
+      "feature_name": "bp_stage2+metabolic_bp",
+      "feature_type": "composite",
+      "support": 0.36428571428571427,
+      "confidence": 0.9215686274509803,
+      "lift": 1.4388803848677019,
+      "conviction": 4.583928571428569,
+      "weight": 0.025768158841257528
+    },
+    {
+      "rule_id": "R38",
+      "condition": "bp_stage2=1 AND st_moderate=1",
+      "feature_name": "bp_stage2+st_moderate",
+      "feature_type": "composite",
+      "support": 0.10714285714285714,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.013478235884171632
+    },
+    {
+      "rule_id": "R39",
+      "condition": "bp_stage2=1 AND age_senior=1",
+      "feature_name": "bp_stage2+age_senior",
+      "feature_type": "composite",
+      "support": 0.13095238095238096,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.017527337822316278
+    },
+    {
+      "rule_id": "R40",
+      "condition": "st_normal=1 AND cholesterol_high=1",
+      "feature_name": "st_normal+cholesterol_high",
+      "feature_type": "composite",
+      "support": 0.18571428571428572,
+      "confidence": 0.6282051282051282,
+      "lift": 0.9808407206176724,
+      "conviction": 0.9669950738916258,
+      "weight": 0.014306051414413327
+    },
+    {
+      "rule_id": "R41",
+      "condition": "st_normal=1 AND metabolic_bp=1",
+      "feature_name": "st_normal+metabolic_bp",
+      "feature_type": "composite",
+      "support": 0.19047619047619047,
+      "confidence": 0.5875,
+      "lift": 0.91728624535316,
+      "conviction": 0.8715728715728718,
+      "weight": 0.013157783955897583
+    },
+    {
+      "rule_id": "R42",
+      "condition": "st_normal=1 AND age_senior=1",
+      "feature_name": "st_normal+age_senior",
+      "feature_type": "composite",
+      "support": 0.06666666666666667,
+      "confidence": 0.8214285714285714,
+      "lift": 1.2825278810408922,
+      "conviction": 2.013333333333333,
+      "weight": 0.010179714091506201
+    },
+    {
+      "rule_id": "R43",
+      "condition": "cholesterol_high=1 AND metabolic_bp=1",
+      "feature_name": "cholesterol_high+metabolic_bp",
+      "feature_type": "composite",
+      "support": 0.28809523809523807,
+      "confidence": 0.9256198347107438,
+      "lift": 1.445205689882946,
+      "conviction": 4.833597883597886,
+      "weight": 0.024999885516936726
+    },
+    {
+      "rule_id": "R44",
+      "condition": "cholesterol_high=1 AND st_moderate=1",
+      "feature_name": "cholesterol_high+st_moderate",
+      "feature_type": "composite",
+      "support": 0.1357142857142857,
+      "confidence": 1.0,
+      "lift": 1.5613382899628254,
+      "conviction": 10.0,
+      "weight": 0.01566214375639522
+    },
+    {
+      "rule_id": "R45",
+      "condition": "cholesterol_high=1 AND age_senior=1",
+      "feature_name": "cholesterol_high+age_senior",
+      "feature_type": "composite",
+      "support": 0.1738095238095238,
+      "confidence": 0.9726027397260274,
+      "lift": 1.5185618984569946,
+      "conviction": 10.0,
+      "weight": 0.02169918353301638
+    },
+    {
+      "rule_id": "R46",
+      "condition": "metabolic_bp=1 AND st_moderate=1",
+      "feature_name": "metabolic_bp+st_moderate",
+      "feature_type": "composite",
+      "support": 0.15714285714285714,
+      "confidence": 0.9393939393939394,
+      "lift": 1.4667117269347754,
+      "conviction": 5.932142857142863,
+      "weight": 0.016156091939795447
+    },
+    {
+      "rule_id": "R47",
+      "condition": "metabolic_bp=1 AND age_senior=1",
+      "feature_name": "metabolic_bp+age_senior",
+      "feature_type": "composite",
+      "support": 0.18571428571428572,
+      "confidence": 0.9487179487179487,
+      "lift": 1.4812696597083215,
+      "conviction": 7.010714285714282,
+      "weight": 0.021580622528490544
+    },
+    {
+      "rule_id": "R48",
+      "condition": "st_moderate=1 AND age_senior=1",
+      "feature_name": "st_moderate+age_senior",
+      "feature_type": "composite",
+      "support": 0.09523809523809523,
+      "confidence": 0.925,
+      "lift": 1.4442379182156135,
+      "conviction": 4.793650793650797,
+      "weight": 0.015496667602197929
+    }
+  ],
+  "performance": {
+    "train": {
+      "accuracy": 0.9119047619047619,
+      "balanced_accuracy": 0.9181540658312612,
+      "f1_score": 0.928709055876686,
+      "auc_roc": 0.9181540658312614
+    },
+    "validation": {
+      "accuracy": 0.8571428571428571,
+      "balanced_accuracy": 0.8577777777777778,
+      "f1_score": 0.8850574712643678,
+      "auc_roc": 0.8577777777777778
+    },
+    "test": {
+      "accuracy": 0.8581560283687943,
+      "balanced_accuracy": 0.8633986928104576,
+      "f1_score": 0.8837209302325582,
+      "auc_roc": 0.8633986928104576,
+      "matthews_corrcoef": 0.7079242138280438,
+      "precision": 0.926829268292683,
+      "recall": 0.8444444444444444,
+      "specificity": 0.8823529411764706
+    }
+  },
+  "cross_validation": [
+    {
+      "fold": 1,
+      "accuracy": 0.9285714285714286,
+      "f1": 0.9423076923076923
+    },
+    {
+      "fold": 2,
+      "accuracy": 0.9166666666666666,
+      "f1": 0.9369369369369369
+    },
+    {
+      "fold": 3,
+      "accuracy": 0.8809523809523809,
+      "f1": 0.9038461538461539
+    },
+    {
+      "fold": 4,
+      "accuracy": 0.9166666666666666,
+      "f1": 0.9306930693069307
+    },
+    {
+      "fold": 5,
+      "accuracy": 0.9166666666666666,
+      "f1": 0.9292929292929293
+    }
+  ]
+}
