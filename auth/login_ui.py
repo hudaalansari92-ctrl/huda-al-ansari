@@ -40,7 +40,7 @@ LOGIN_TEXT = {
         'demo_accounts': 'Demo Accounts',
         'admin_label': 'Admin',
         'patient_label': 'Patient',
-        'lang_label': 'Language / اللغة',
+        'lang_label': 'Language',
     }
 }
 

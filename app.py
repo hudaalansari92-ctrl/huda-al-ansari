@@ -98,7 +98,7 @@ class SessionStorage:
 def init_streamlit_config():
     """تهيئة إعدادات Streamlit"""
     st.set_page_config(
-        page_title="Healthcare Chatbot System Based on Intelligent Techniques | نظام شات بوت للرعاية الصحية مبني على التقنيات الذكية",
+        page_title="Healthcare Chatbot System Based on Intelligent Techniques",
         page_icon="",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -703,8 +703,10 @@ def render_sidebar():
     """عرض الشريط الجانبي"""
     with st.sidebar:
         # اللغة أولاً (تؤثر على كل شيء)
+        _current_lang = st.session_state.get('language_select', 'ar')
+        _lang_label = 'اللغة' if _current_lang == 'ar' else 'Language'
         language = st.selectbox(
-            "Language / اللغة",
+            _lang_label,
             options=['ar', 'en'],
             format_func=lambda x: 'العربية' if x == 'ar' else 'English',
             key='language_select'
