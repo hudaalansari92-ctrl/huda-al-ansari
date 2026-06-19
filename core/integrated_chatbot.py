@@ -290,11 +290,46 @@ class IntegratedSelfReasoningChatbot:
         'ما أعاني', 'لا أعاني', 'لا يوجد', 'لا أشكي', 'no', 'n',
         'nope', 'never', 'false',
     }
-    _NORMAL_WORDS = {'طبيعي', 'عادي', 'سليم', 'بخير', 'normal', 'fine', 'healthy', 'ok'}
+    _NORMAL_WORDS = {
+        'طبيعي', 'عادي', 'سليم', 'بخير', 'مظبوط', 'مضبوط', 'تمام',
+        'normal', 'fine', 'healthy', 'ok', 'good',
+    }
+
+    # Arabic diacritics, tatweel, and the various alif / ya / ta-marbuta
+    # forms that patients often type interchangeably. Stripping them lets a
+    # short reply like "كلّاْ" / "أنْثى" / "الذكَر" match the canonical
+    # keywords we look for ("كلا" / "أنثى" / "الذكر").
+    _AR_DIACRITICS = 'ًٌٍَُِّْٰٕٖٓٔٗ٘'
+    _AR_TATWEEL = 'ـ'
+
+    @classmethod
+    def _normalize_ar(cls, text: str) -> str:
+        """Lower-case + strip Arabic diacritics + unify common letter
+        variants so dialect / typo spellings still match our keywords."""
+        if not text:
+            return ''
+        s = str(text)
+        # Remove tashkeel
+        for ch in cls._AR_DIACRITICS:
+            s = s.replace(ch, '')
+        # Remove tatweel
+        s = s.replace(cls._AR_TATWEEL, '')
+        # Unify alif forms (أ إ آ ٱ ا → ا)
+        for ch in 'أإآٱ':
+            s = s.replace(ch, 'ا')
+        # Unify ya forms (ى → ي) and ta-marbuta (ة → ه)
+        s = s.replace('ى', 'ي').replace('ة', 'ه')
+        # Drop trailing punctuation noise that breaks substring matches
+        s = s.replace('،', ' ').replace('؟', ' ').replace('!', ' ')
+        return s.lower()
 
     @classmethod
     def _has_word(cls, text_lower: str, words) -> bool:
-        return any(w in text_lower for w in words)
+        norm = cls._normalize_ar(text_lower)
+        for w in words:
+            if cls._normalize_ar(w) in norm:
+                return True
+        return False
 
     def _smart_extract_for_field(self, field_name: str, raw_text: str):
         """Try to interpret `raw_text` as an answer to a question about
@@ -305,7 +340,11 @@ class IntegratedSelfReasoningChatbot:
         if not raw_text:
             return None
         text = str(raw_text).strip()
-        text_lower = text.lower()
+        # Both forms: lower-cased (for Latin keywords) and Arabic-normalised
+        # (diacritics + alif / ya / ta-marbuta unified). All literal substring
+        # checks below use `text_lower`, which is now the Arabic-normalised
+        # form so dialectal spellings still match.
+        text_lower = self._normalize_ar(text)
 
         # --- NUMERIC FIELDS: pull the first number out ---
         if field_name in ('Age', 'Cholesterol', 'MaxHR'):
@@ -356,53 +395,56 @@ class IntegratedSelfReasoningChatbot:
             return None
 
         if field_name == 'FastingBS':
-            if self._has_word(text_lower, ('مرتفع', 'عالي', 'عالية', 'high', 'سكري', 'diabetic')):
-                return 1
+            # Check NORMAL / NO first — a phrase like "سكري عادي" or
+            # "سكري طبيعي" means "my sugar is normal", not "diabetic".
             if self._has_word(text_lower, self._NORMAL_WORDS) or self._has_word(text_lower, self._NO_WORDS):
                 return 0
+            if self._has_word(text_lower, ('مرتفع', 'عالي', 'عالية', 'high', 'diabetic', 'مريض سكر')):
+                return 1
             m = _re.search(r'\d{2,3}', text)
             if m:
                 return 1 if int(m.group(0)) > 120 else 0
             return None
 
-        # --- CATEGORICAL FIELDS ---
+        # --- CATEGORICAL FIELDS (all Arabic literals are in NORMALISED form:
+        #     no diacritics, alif/ya/ta-marbuta unified, lower-cased) ---
         if field_name == 'ChestPain':
             if self._has_word(text_lower, self._NO_WORDS) or self._has_word(text_lower, self._NORMAL_WORDS):
                 return 'ASY'  # No pain / chest is fine
-            if 'asy' in text_lower or 'asymptomatic' in text_lower or 'بدون أعراض' in text:
+            if 'asy' in text_lower or 'asymptomatic' in text_lower or 'بدون اعراض' in text_lower:
                 return 'ASY'
-            if 'ata' in text_lower or 'غير نموذجي' in text or 'atypical' in text_lower:
+            if 'ata' in text_lower or 'غير نموذجي' in text_lower or 'atypical' in text_lower:
                 return 'ATA'
-            if 'nap' in text_lower or 'غير ذبحة' in text or 'non-anginal' in text_lower:
+            if 'nap' in text_lower or 'غير ذبحه' in text_lower or 'non-anginal' in text_lower:
                 return 'NAP'
-            if 'ta' in text_lower or 'نموذجي' in text or 'typical' in text_lower or 'angina' in text_lower:
+            if 'ta' in text_lower or 'نموذجي' in text_lower or 'typical' in text_lower or 'angina' in text_lower:
                 return 'TA'
-            if 'ألم' in text or 'pain' in text_lower or 'يوجعني' in text:
+            if 'الم' in text_lower or 'pain' in text_lower or 'يوجعني' in text_lower:
                 return 'TA'
             return None
 
         if field_name == 'RestingECG':
             if self._has_word(text_lower, self._NORMAL_WORDS) or self._has_word(text_lower, self._NO_WORDS):
                 return 'Normal'
-            if 'lvh' in text_lower or 'تضخم' in text:
+            if 'lvh' in text_lower or 'تضخم' in text_lower:
                 return 'LVH'
-            if 'st' in text_lower or 'موجة' in text or 'اضطراب' in text:
+            if 'st' in text_lower or 'موجه' in text_lower or 'اضطراب' in text_lower:
                 return 'ST'
             return None
 
         if field_name == 'ST_Slope':
-            if 'up' in text_lower or 'صاعد' in text or 'مرتفع' in text:
+            if 'up' in text_lower or 'صاعد' in text_lower or 'مرتفع' in text_lower:
                 return 'Up'
-            if 'down' in text_lower or 'هابط' in text or 'منحدر' in text:
+            if 'down' in text_lower or 'هابط' in text_lower or 'منحدر' in text_lower:
                 return 'Down'
-            if 'flat' in text_lower or 'مسطح' in text or self._has_word(text_lower, self._NORMAL_WORDS):
+            if 'flat' in text_lower or 'مسطح' in text_lower or self._has_word(text_lower, self._NORMAL_WORDS):
                 return 'Flat'
             return None
 
         if field_name == 'Sex':
-            if 'female' in text_lower or 'أنثى' in text or 'امرأة' in text or text_lower.strip() == 'f':
+            if 'female' in text_lower or 'انثي' in text_lower or 'امراه' in text_lower or text_lower.strip() == 'f':
                 return 'Female'
-            if 'male' in text_lower or 'ذكر' in text or 'رجل' in text or text_lower.strip() == 'm':
+            if 'male' in text_lower or 'ذكر' in text_lower or 'رجل' in text_lower or text_lower.strip() == 'm':
                 return 'Male'
             return None
 
