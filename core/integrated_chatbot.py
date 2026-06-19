@@ -79,6 +79,12 @@ class IntegratedSelfReasoningChatbot:
         # حالة Domain Assessment
         self.domain_assessment = None
 
+        # The field the chatbot is about to ask for. Used by the context
+        # extractor to interpret short replies ("لا", "120", "Chol 310")
+        # in the right field's context. Initialised here so the very
+        # first turn already has a deterministic value.
+        self._last_asked_field: Optional[str] = None
+
         logger.info(f"تم إنشاء جلسة جديدة: {self.session_id}")
         if self.groq_client.is_available:
             logger.info("Groq API connected successfully")
@@ -866,16 +872,38 @@ class IntegratedSelfReasoningChatbot:
         logger.info(f"Smart input processing: '{text[:60]}...'")
 
         # === الخطوة 0: تفسير سياقي للسؤال المطروح ===
-        # If the previous turn asked for a specific field, try a smart
-        # context-aware interpretation first. This catches short replies
-        # like "كلا", "120", "Chol 310" that the generic NER may miss.
+        # Catches short replies ("كلا", "120", "Chol 310") that the
+        # generic NER pipeline would miss.
         context_extracted = {}
         last_asked = getattr(self, '_last_asked_field', None)
+
+        # First-best target: the field the chatbot just asked for.
         if last_asked and last_asked not in self.answered_fields:
             ctx_value = self._smart_extract_for_field(last_asked, text)
             if ctx_value is not None:
                 context_extracted[last_asked] = ctx_value
-                logger.info(f"Context-aware extraction: {last_asked} = {ctx_value}")
+                logger.info(f"Context-aware extraction (asked): {last_asked} = {ctx_value}")
+
+        # Fallback safety net: for very short / terse replies (≤ 30 chars)
+        # also try every remaining unanswered field, since the patient
+        # almost certainly meant to answer the most relevant pending
+        # question. The priority scorer's order is honoured, so the
+        # highest-priority field gets matched first.
+        if not context_extracted and text and len(text.strip()) <= 30:
+            ordered_remaining = [
+                f for f in (
+                    'ChestPain', 'ExerciseAngina', 'FastingBS', 'RestingECG',
+                    'ST_Slope', 'Sex', 'Age', 'BloodPressure', 'Cholesterol',
+                    'MaxHR', 'Oldpeak',
+                )
+                if f not in self.answered_fields
+            ]
+            for f in ordered_remaining:
+                ctx_value = self._smart_extract_for_field(f, text)
+                if ctx_value is not None:
+                    context_extracted[f] = ctx_value
+                    logger.info(f"Context-aware extraction (fallback): {f} = {ctx_value}")
+                    break  # one field per short reply
 
         # === الخطوة 1: استخراج الحقول ===
         # Try Groq NER first
