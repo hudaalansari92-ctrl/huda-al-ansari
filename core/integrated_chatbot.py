@@ -331,121 +331,241 @@ class IntegratedSelfReasoningChatbot:
                 return True
         return False
 
+    # ──────────────────────────────────────────────────────────────────
+    # Helpers used by _smart_extract_for_field
+    # ──────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _arabic_to_western_digits(s: str) -> str:
+        """٠١٢٣٤٥٦٧٨٩ -> 0123456789 (Eastern Arabic-Indic + Persian)."""
+        table = str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789')
+        return s.translate(table)
+
+    @staticmethod
+    def _first_int(text: str, lo: int, hi: int):
+        """First integer in [lo, hi] found in `text`, else None."""
+        import re as _re
+        for m in _re.finditer(r'\d+', text):
+            try:
+                v = int(m.group(0))
+            except ValueError:
+                continue
+            if lo <= v <= hi:
+                return v
+        return None
+
+    @staticmethod
+    def _first_float(text: str, lo: float, hi: float):
+        """First float in [lo, hi] found in `text`, else None."""
+        import re as _re
+        for m in _re.finditer(r'\d+(?:\.\d+)?', text):
+            try:
+                v = float(m.group(0))
+            except ValueError:
+                continue
+            if lo <= v <= hi:
+                return v
+        return None
+
     def _smart_extract_for_field(self, field_name: str, raw_text: str):
-        """Try to interpret `raw_text` as an answer to a question about
-        `field_name`. Returns the extracted value, or None if nothing
-        could be confidently inferred.
+        """Interpret `raw_text` as an answer to a question about
+        `field_name`. Returns the extracted value, or None.
+
+        Each clinical field has its own ruleset combining:
+          - numeric extraction with a valid clinical range,
+          - dialectal Arabic / English keyword lookups (with diacritics
+            and alif / ya / ta-marbuta normalised away),
+          - explicit handling of "normal / healthy" answers,
+          - explicit handling of negations and the qualitative scale
+            (low / moderate / high) when the patient does not give a
+            precise number.
         """
         import re as _re
-        if not raw_text:
+        if raw_text is None:
             return None
         text = str(raw_text).strip()
-        # Both forms: lower-cased (for Latin keywords) and Arabic-normalised
-        # (diacritics + alif / ya / ta-marbuta unified). All literal substring
-        # checks below use `text_lower`, which is now the Arabic-normalised
-        # form so dialectal spellings still match.
+        if not text:
+            return None
+
+        # Convert Arabic-Indic / Persian digits so numeric checks work uniformly.
+        text = self._arabic_to_western_digits(text)
+        # `text_lower` is the Arabic-normalised + lower-cased form used by
+        # every substring check below.
         text_lower = self._normalize_ar(text)
+        # "غير طبيعي" / "non-normal" / "abnormal" must override the plain
+        # NORMAL check, otherwise the trailing word "طبيعي" is mistaken
+        # for a healthy reply.
+        _abnormal_markers = ('غير طبيعي', 'غير عادي', 'ليس طبيعي', 'ليس عادي',
+                             'abnormal', 'not normal', 'non-normal')
+        is_abnormal = any(m in text_lower for m in _abnormal_markers)
+        is_normal = (not is_abnormal) and self._has_word(text_lower, self._NORMAL_WORDS)
+        is_no     = self._has_word(text_lower, self._NO_WORDS)
+        is_yes    = self._has_word(text_lower, self._YES_WORDS)
 
-        # --- NUMERIC FIELDS: pull the first number out ---
-        if field_name in ('Age', 'Cholesterol', 'MaxHR'):
-            m = _re.search(r'\d{1,4}', text)
-            if m:
-                try:
-                    return int(m.group(0))
-                except ValueError:
-                    pass
-            if self._has_word(text_lower, self._NORMAL_WORDS):
-                # Sensible normal defaults
-                return {'Age': 35, 'Cholesterol': 180, 'MaxHR': 150}[field_name]
+        # ─────────────────────── 1. Age ───────────────────────
+        if field_name == 'Age':
+            v = self._first_int(text, 1, 120)
+            if v is not None:
+                return v
+            if 'طفل' in text_lower or 'child' in text_lower:
+                return 10
+            if 'شاب' in text_lower or 'young' in text_lower:
+                return 25
+            if 'كبير' in text_lower or 'مسن' in text_lower or 'elderly' in text_lower or 'old' in text_lower:
+                return 70
             return None
 
-        if field_name == 'Oldpeak':
-            m = _re.search(r'\d+(?:\.\d+)?', text)
-            if m:
-                try:
-                    return float(m.group(0))
-                except ValueError:
-                    pass
-            if self._has_word(text_lower, self._NORMAL_WORDS):
-                return 0.0
+        # ─────────────────────── 2. Sex ───────────────────────
+        if field_name == 'Sex':
+            stripped = text_lower.strip()
+            if (stripped in ('f', 'female')
+                    or 'انثي' in text_lower or 'امراه' in text_lower
+                    or 'بنت' in text_lower or 'سيده' in text_lower
+                    or 'female' in text_lower or 'woman' in text_lower):
+                return 'Female'
+            if (stripped in ('m', 'male')
+                    or 'ذكر' in text_lower or 'رجل' in text_lower
+                    or 'ولد' in text_lower or 'male' in text_lower
+                    or 'man' in text_lower):
+                return 'Male'
             return None
 
-        if field_name == 'BloodPressure':
-            # "140/90", "140 على 90", or single number → assume diastolic = sys−40
-            m = _re.search(r'(\d{2,3})\s*[/على\\\-]+\s*(\d{2,3})', text)
-            if m:
-                return f"{int(m.group(1))}/{int(m.group(2))}"
-            m = _re.search(r'\d{2,3}', text)
-            if m:
-                sys_v = int(m.group(0))
-                if 80 <= sys_v <= 220:
-                    return f"{sys_v}/{max(60, sys_v - 40)}"
-            if self._has_word(text_lower, self._NORMAL_WORDS):
-                return "120/80"
-            return None
-
-        # --- YES / NO STYLE FIELDS ---
-        if field_name == 'ExerciseAngina':
-            if self._has_word(text_lower, self._NO_WORDS):
-                return 'N'
-            if self._has_word(text_lower, self._YES_WORDS):
-                return 'Y'
-            if self._has_word(text_lower, self._NORMAL_WORDS):
-                return 'N'
-            return None
-
-        if field_name == 'FastingBS':
-            # Check NORMAL / NO first — a phrase like "سكري عادي" or
-            # "سكري طبيعي" means "my sugar is normal", not "diabetic".
-            if self._has_word(text_lower, self._NORMAL_WORDS) or self._has_word(text_lower, self._NO_WORDS):
-                return 0
-            if self._has_word(text_lower, ('مرتفع', 'عالي', 'عالية', 'high', 'diabetic', 'مريض سكر')):
-                return 1
-            m = _re.search(r'\d{2,3}', text)
-            if m:
-                return 1 if int(m.group(0)) > 120 else 0
-            return None
-
-        # --- CATEGORICAL FIELDS (all Arabic literals are in NORMALISED form:
-        #     no diacritics, alif/ya/ta-marbuta unified, lower-cased) ---
+        # ─────────────────────── 3. ChestPain ───────────────────────
         if field_name == 'ChestPain':
-            if self._has_word(text_lower, self._NO_WORDS) or self._has_word(text_lower, self._NORMAL_WORDS):
-                return 'ASY'  # No pain / chest is fine
-            if 'asy' in text_lower or 'asymptomatic' in text_lower or 'بدون اعراض' in text_lower:
+            if is_no or is_normal:
                 return 'ASY'
-            if 'ata' in text_lower or 'غير نموذجي' in text_lower or 'atypical' in text_lower:
+            if ('asy' in text_lower or 'asymptomatic' in text_lower
+                    or 'بدون اعراض' in text_lower or 'ما اشكي' in text_lower):
+                return 'ASY'
+            if ('غير نموذجي' in text_lower or 'atypical' in text_lower
+                    or text_lower.strip() == 'ata'):
                 return 'ATA'
-            if 'nap' in text_lower or 'غير ذبحه' in text_lower or 'non-anginal' in text_lower:
+            if ('غير ذبحه' in text_lower or 'non-anginal' in text_lower
+                    or 'ليس ذبحه' in text_lower or text_lower.strip() == 'nap'):
                 return 'NAP'
-            if 'ta' in text_lower or 'نموذجي' in text_lower or 'typical' in text_lower or 'angina' in text_lower:
+            if ('نموذجي' in text_lower or 'typical' in text_lower
+                    or 'ذبحه صدريه' in text_lower or 'angina' in text_lower
+                    or text_lower.strip() == 'ta'):
                 return 'TA'
-            if 'الم' in text_lower or 'pain' in text_lower or 'يوجعني' in text_lower:
+            if ('الم' in text_lower or 'pain' in text_lower
+                    or 'يوجعني' in text_lower or 'وجع' in text_lower):
                 return 'TA'
             return None
 
+        # ─────────────────────── 4. BloodPressure ───────────────────────
+        if field_name == 'BloodPressure':
+            # Two numbers — accept "/", "على", "on", "\".
+            m = _re.search(r'(\d{2,3})\s*(?:[/\\]|على|\bon\b)\s*(\d{2,3})',
+                           text, _re.IGNORECASE)
+            if m:
+                s, d = int(m.group(1)), int(m.group(2))
+                if 70 <= s <= 250 and 30 <= d <= 150:
+                    return f"{s}/{d}"
+            v = self._first_int(text, 70, 250)
+            if v is not None:
+                return f"{v}/{max(50, v - 40)}"
+            if is_normal or is_no:
+                return "120/80"
+            if ('مرتفع' in text_lower or 'عالي' in text_lower
+                    or 'high' in text_lower or 'hypertension' in text_lower):
+                return "150/95"
+            if ('منخفض' in text_lower or 'low' in text_lower
+                    or 'hypotension' in text_lower):
+                return "95/60"
+            return None
+
+        # ─────────────────────── 5. Cholesterol ───────────────────────
+        if field_name == 'Cholesterol':
+            v = self._first_int(text, 80, 700)
+            if v is not None:
+                return v
+            if 'مرتفع' in text_lower or 'عالي' in text_lower or 'high' in text_lower:
+                return 260
+            if 'منخفض' in text_lower or 'low' in text_lower:
+                return 150
+            if is_normal or is_no:
+                return 180
+            return None
+
+        # ─────────────────────── 6. FastingBS ───────────────────────
+        if field_name == 'FastingBS':
+            # Normal / no FIRST so "سكري عادي" isn't mis-read as "diabetic".
+            if is_normal or is_no:
+                return 0
+            if ('مرتفع' in text_lower or 'عالي' in text_lower
+                    or 'high' in text_lower or 'diabetic' in text_lower
+                    or 'مريض سكر' in text_lower or 'سكري' in text_lower
+                    or 'سكر' in text_lower):
+                return 1
+            v = self._first_int(text, 40, 600)
+            if v is not None:
+                return 1 if v > 120 else 0
+            return None
+
+        # ─────────────────────── 7. RestingECG ───────────────────────
         if field_name == 'RestingECG':
-            if self._has_word(text_lower, self._NORMAL_WORDS) or self._has_word(text_lower, self._NO_WORDS):
+            if is_normal or is_no:
                 return 'Normal'
-            if 'lvh' in text_lower or 'تضخم' in text_lower:
+            if ('lvh' in text_lower or 'تضخم البطين' in text_lower
+                    or 'تضخم' in text_lower or 'ventricular hypertrophy' in text_lower):
                 return 'LVH'
-            if 'st' in text_lower or 'موجه' in text_lower or 'اضطراب' in text_lower:
+            if ('st-t' in text_lower or 'st wave' in text_lower
+                    or 'موجه' in text_lower or 'اضطراب' in text_lower
+                    or text_lower.strip() == 'st'):
+                return 'ST'
+            # "غير طبيعي" / "abnormal" without a more specific marker
+            # defaults to ST-T abnormality (the most common ECG finding).
+            if is_abnormal:
                 return 'ST'
             return None
 
-        if field_name == 'ST_Slope':
-            if 'up' in text_lower or 'صاعد' in text_lower or 'مرتفع' in text_lower:
-                return 'Up'
-            if 'down' in text_lower or 'هابط' in text_lower or 'منحدر' in text_lower:
-                return 'Down'
-            if 'flat' in text_lower or 'مسطح' in text_lower or self._has_word(text_lower, self._NORMAL_WORDS):
-                return 'Flat'
+        # ─────────────────────── 8. MaxHR ───────────────────────
+        if field_name == 'MaxHR':
+            v = self._first_int(text, 40, 250)
+            if v is not None:
+                return v
+            if ('مرتفع' in text_lower or 'سريع' in text_lower
+                    or 'high' in text_lower or 'fast' in text_lower):
+                return 180
+            if ('منخفض' in text_lower or 'بطيء' in text_lower
+                    or 'low' in text_lower or 'slow' in text_lower):
+                return 110
+            if is_normal or is_no:
+                return 150
             return None
 
-        if field_name == 'Sex':
-            if 'female' in text_lower or 'انثي' in text_lower or 'امراه' in text_lower or text_lower.strip() == 'f':
-                return 'Female'
-            if 'male' in text_lower or 'ذكر' in text_lower or 'رجل' in text_lower or text_lower.strip() == 'm':
-                return 'Male'
+        # ─────────────────────── 9. ExerciseAngina ───────────────────────
+        if field_name == 'ExerciseAngina':
+            # NO first — "لا أعاني عند الرياضة" is the dominant clinical reply.
+            if is_no or is_normal:
+                return 'N'
+            if is_yes:
+                return 'Y'
+            return None
+
+        # ─────────────────────── 10. Oldpeak ───────────────────────
+        if field_name == 'Oldpeak':
+            v = self._first_float(text, 0.0, 10.0)
+            if v is not None:
+                return v
+            if is_normal or is_no:
+                return 0.0
+            if 'شديد' in text_lower or 'severe' in text_lower:
+                return 3.0
+            if 'متوسط' in text_lower or 'moderate' in text_lower:
+                return 1.5
+            if 'خفيف' in text_lower or 'mild' in text_lower:
+                return 0.5
+            return None
+
+        # ─────────────────────── 11. ST_Slope ───────────────────────
+        if field_name == 'ST_Slope':
+            if 'up' in text_lower or 'صاعد' in text_lower or 'upslop' in text_lower:
+                return 'Up'
+            if ('down' in text_lower or 'هابط' in text_lower
+                    or 'منحدر' in text_lower or 'downslop' in text_lower):
+                return 'Down'
+            if 'flat' in text_lower or 'مسطح' in text_lower or is_normal:
+                return 'Flat'
             return None
 
         return None
