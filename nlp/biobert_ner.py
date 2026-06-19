@@ -134,11 +134,23 @@ class BioBERTNER:
             
             # 3. ChestPain (ألم الصدر)
             'chest_pain': {
-                'indicators': ['ألم', 'صدر', 'chest', 'pain'],
+                'indicators': ['ألم', 'صدر', 'chest', 'pain', 'angina'],
                 'TA': ['نموذجي', 'typical', 'angina'],
                 'ATA': ['غير نموذجي', 'atypical'],
                 'NAP': ['غير ذبحة', 'non-anginal'],
-                'ASY': ['بدون أعراض', 'asymptomatic', 'لا يوجد'],
+                'ASY': [
+                    'بدون أعراض', 'asymptomatic', 'لا يوجد',
+                    # Explicit denials / "I'm fine" phrasings
+                    'لا ألم', 'ما عندي ألم', 'ما يوجعني', 'ما في ألم',
+                    'صدري بخير', 'صدري طبيعي', 'لا أعاني', 'no pain',
+                    'no chest pain', 'without pain', 'no symptoms',
+                    'chest is normal', 'chest is fine', 'صدري سليم',
+                ],
+                # Standalone "normal/healthy" phrasings that imply ASY
+                'normal_aliases': [
+                    'طبيعي', 'عادي', 'سليم', 'بخير',
+                    'normal', 'fine', 'healthy', 'ok'
+                ],
             },
             
             # 4. BloodPressure - أرقام فقط
@@ -342,43 +354,67 @@ class BioBERTNER:
         
         # Step 2: Keyword matching
         text_lower = text.lower()
-        
-        # Check if chest pain keywords exist
-        has_chest_pain = any(kw in text_lower for kw in self.medical_keywords['chest_pain']['indicators'])
-        
+        cp = self.medical_keywords['chest_pain']
+
+        # Step 2a — explicit ASY phrasings ("no chest pain", "صدري بخير")
+        # take precedence: a denial is informative even without the word
+        # "chest pain" itself.
+        if any(kw in text_lower for kw in cp['ASY']):
+            return 'ASY'
+
+        # Step 2b — chest-pain mentioned: pick the most specific subtype.
+        has_chest_pain = any(kw in text_lower for kw in cp['indicators'])
         if has_chest_pain:
-            # Check for specific types
-            if any(kw in text_lower for kw in self.medical_keywords['chest_pain']['TA']):
+            if any(kw in text_lower for kw in cp['TA']):
                 return 'TA'
-            elif any(kw in text_lower for kw in self.medical_keywords['chest_pain']['ATA']):
+            elif any(kw in text_lower for kw in cp['ATA']):
                 return 'ATA'
-            elif any(kw in text_lower for kw in self.medical_keywords['chest_pain']['NAP']):
+            elif any(kw in text_lower for kw in cp['NAP']):
                 return 'NAP'
-            elif any(kw in text_lower for kw in self.medical_keywords['chest_pain']['ASY']):
+            elif any(kw in text_lower for kw in cp['ASY']):
+                return 'ASY'
+            # If only "chest pain" is mentioned without a subtype keyword
+            # but the patient also says "طبيعي / normal / fine", treat as
+            # asymptomatic instead of defaulting to TA.
+            elif any(kw in text_lower for kw in cp['normal_aliases']):
                 return 'ASY'
             else:
-                # Default if only "chest pain" mentioned
+                # Plain "chest pain" with no qualifier — assume typical angina
                 return 'TA'
-        
+
         return None
     
+    # Generic "the patient just said the value is normal/healthy" helper.
+    # Returns True if `text` contains at least one feature-naming keyword
+    # AND a normal/healthy keyword close to each other in the sentence.
+    _NORMAL_KEYWORDS = (
+        'طبيعي', 'عادي', 'سليم', 'بخير', 'مظبوط', 'مضبوط',
+        'normal', 'fine', 'healthy', 'ok'
+    )
+
+    def _mentions_normal(self, text: str, feature_keywords) -> bool:
+        text_lower = text.lower()
+        if not any(kw in text_lower for kw in feature_keywords):
+            return False
+        return any(kw in text_lower for kw in self._NORMAL_KEYWORDS)
+
     def _extract_blood_pressure(self, text: str) -> Optional[str]:
         """
-        استخراج ضغط الدم (BloodPressure)
-        
+        Extract blood pressure (BloodPressure).
         Strategy:
-        1. Try regex patterns for XXX/YYY format
-        2. Validate ranges (systolic: 80-200, diastolic: 40-130)
-        3. Return as "systolic/diastolic"
+        1. Numeric "XXX/YYY".
+        2. "ضغطي طبيعي / normal blood pressure" → clinical normal 120/80.
         """
         for pattern in self.medical_patterns['blood_pressure']:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 systolic = int(match.group(1))
                 diastolic = int(match.group(2))
-                # Validate ranges
                 if 80 <= systolic <= 200 and 40 <= diastolic <= 130:
                     return f"{systolic}/{diastolic}"
+        # Patient described the value qualitatively
+        if self._mentions_normal(text, ['ضغط', 'bp', 'blood pressure', 'الضغط']):
+            return "120/80"
         return None
     
     def _extract_cholesterol(self, text: str) -> Optional[int]:
@@ -396,8 +432,11 @@ class BioBERTNER:
                 chol = int(match.group(1))
                 if 100 <= chol <= 600:
                     return chol
+        # Patient said "كوليسترولي طبيعي" → clinical normal ≈ 180 mg/dL
+        if self._mentions_normal(text, ['كوليسترول', 'cholesterol', 'chol']):
+            return 180
         return None
-    
+
     def _extract_fasting_blood_sugar(self, text: str) -> Optional[int]:
         """
         استخراج سكر الدم الصائم (FastingBS)
@@ -486,6 +525,12 @@ class BioBERTNER:
                 hr = int(match.group(1))
                 if 60 <= hr <= 220:
                     return hr
+        # Patient said "نبضي طبيعي / normal heart rate"
+        if self._mentions_normal(
+            text,
+            ['نبض', 'القلب', 'heart rate', 'max hr', 'maxhr', 'ضربات', 'pulse'],
+        ):
+            return 150
         return None
     
     def _extract_exercise_angina(self, text: str) -> Optional[str]:
@@ -540,6 +585,9 @@ class BioBERTNER:
                 oldpeak = float(match.group(1))
                 if 0.0 <= oldpeak <= 10.0:
                     return oldpeak
+        # Patient said "ST طبيعي / normal ST depression" → near zero
+        if self._mentions_normal(text, ['st', 'oldpeak', 'انخفاض', 'depression']):
+            return 0.0
         return None
     
     def _extract_st_slope(self, text: str) -> Optional[str]:
