@@ -906,6 +906,8 @@ class IntegratedSelfReasoningChatbot:
                     f"(Groq: {len(groq_extracted)}, BioBERT: {len(biobert_extracted)})")
 
         # === الخطوة 2: تخزين الحقول ===
+        # Pick up Groq's per-field confidence (written by GroqNER.extract).
+        groq_conf = getattr(self.groq_ner, 'last_confidences', {}) or {}
         extracted_details = []
         for field_name, value in merged_extracted.items():
             normalized = self._normalize_value(field_name, value)
@@ -913,11 +915,21 @@ class IntegratedSelfReasoningChatbot:
             if field_name not in self.answered_fields:
                 self.answered_fields.append(field_name)
 
+            if field_name in context_extracted:
+                source = 'context'
+                conf = 1.0
+            elif field_name in groq_extracted:
+                source = 'groq'
+                conf = float(groq_conf.get(field_name, 0.85))
+            else:
+                source = 'biobert'
+                conf = 0.75  # regex match is decent but lacks model context
             extracted_details.append({
                 'field': field_name,
                 'field_ar': self._get_field_arabic_name(field_name),
                 'value': normalized,
-                'source': 'groq' if field_name in groq_extracted else 'biobert'
+                'source': source,
+                'confidence': conf,
             })
 
         # === الخطوة 3: تحديث الحالة ===

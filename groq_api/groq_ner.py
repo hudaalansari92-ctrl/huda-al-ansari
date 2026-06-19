@@ -80,12 +80,29 @@ Fields to extract (use EXACTLY these names and value formats):
 
 CRITICAL RULES:
 - Return ONLY a valid JSON object. No extra text, no markdown.
-- Only include fields you are CONFIDENT about from the text.
+- For EACH extracted field, also return a confidence score in [0.0, 1.0]
+  representing how sure you are about the value. The confidence MUST live
+  in a parallel key "_confidence" so the schema stays flat:
+      {
+        "<FieldName>": <value>,
+        "<FieldName>_confidence": <float between 0 and 1>
+      }
+- High confidence (>= 0.9) = explicit numeric or unambiguous keyword
+  ("عمري 55", "BP 140/90").
+- Medium confidence (0.7-0.9) = clear qualitative phrasing
+  ("ضغطي مرتفع", "no chest pain").
+- Low confidence (< 0.7) = inferred / partially mentioned. Skip the field
+  entirely if confidence would be below 0.5.
 - Do NOT guess or assume values not mentioned.
 - Use the EXACT field names and value formats shown above.
 
 Example input: "أنا رجل عمري 55 سنة وعندي ضغط 150/90 وألم بالصدر"
-Example output: {"Age": 55, "Sex": "Male", "BloodPressure": "150/90", "ChestPain": "ATA"}"""
+Example output: {
+  "Age": 55, "Age_confidence": 0.98,
+  "Sex": "Male", "Sex_confidence": 0.97,
+  "BloodPressure": "150/90", "BloodPressure_confidence": 0.99,
+  "ChestPain": "ATA", "ChestPain_confidence": 0.72
+}"""
 
 
 class GroqNER:
@@ -96,6 +113,10 @@ class GroqNER:
 
     def __init__(self, groq_client):
         self.groq_client = groq_client
+        # Per-field confidence from the last extract() call. The integrated
+        # chatbot reads this so the UI can display a "Groq NER applied"
+        # message with the confidence per extracted field.
+        self.last_confidences: Dict[str, float] = {}
 
     def extract(self, text: str) -> Dict[str, Any]:
         """
@@ -107,7 +128,12 @@ class GroqNER:
         Returns:
             Dict of validated extracted fields. Empty dict if extraction fails.
             Example: {"Age": 45, "BloodPressure": "150/90", "ChestPain": "ATA"}
+
+        Side effect: writes per-field confidence scores from the same
+        Groq response into self.last_confidences, e.g.
+            {"Age": 0.98, "BloodPressure": 0.99, "ChestPain": 0.72}
         """
+        self.last_confidences = {}
         if not text or not text.strip():
             return {}
 
@@ -120,7 +146,7 @@ class GroqNER:
                 system_prompt=SYSTEM_PROMPT,
                 user_message=text.strip(),
                 temperature=0.1,
-                max_tokens=300
+                max_tokens=500
             )
 
             if not response:
@@ -128,9 +154,32 @@ class GroqNER:
                 return {}
 
             parsed = self._parse_response(response)
-            validated = self._validate_fields(parsed)
 
-            logger.info(f"Smart NER extracted {len(validated)} fields from: '{text[:50]}...'")
+            # Separate value entries from confidence entries.
+            raw_confidences = {}
+            value_only = {}
+            for k, v in parsed.items():
+                if k.endswith('_confidence'):
+                    field = k[:-len('_confidence')]
+                    try:
+                        raw_confidences[field] = max(0.0, min(1.0, float(v)))
+                    except (TypeError, ValueError):
+                        continue
+                else:
+                    value_only[k] = v
+
+            validated = self._validate_fields(value_only)
+
+            # Keep only confidences for fields that actually validated.
+            self.last_confidences = {
+                f: raw_confidences.get(f, 0.85)  # safe default if model omitted it
+                for f in validated.keys()
+            }
+
+            logger.info(
+                f"Groq NER extracted {len(validated)} fields with confidence "
+                f"{self.last_confidences} from: '{text[:50]}...'"
+            )
             return validated
 
         except Exception as e:

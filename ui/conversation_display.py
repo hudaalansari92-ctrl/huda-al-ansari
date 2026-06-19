@@ -313,32 +313,75 @@ def render_patient_message(text, language='ar'):
 
 
 def render_extracted_fields_badge(fields, language='ar'):
-    """عرض شارة المعلومات المستخرجة"""
+    """Display the extracted-fields panel — each field with its source and
+    a confidence percentage so the examiner can see Groq NER was applied."""
     if not fields:
         return ""
 
     field_label = t('extracted_info_label', language)
+    # Source → display label + colour
+    source_labels = {
+        'groq':    ('Groq NER',        '#059669'),  # green
+        'context': ('Context',         '#7B1FA2'),  # purple
+        'biobert': ('BioBERT (regex)', '#1976D2'),  # blue
+    }
+
     chips = ""
+    src_counts = {}
+    avg_conf = 0.0
+    n = 0
     for f in fields:
         name = f.get('field_ar', f.get('field', ''))
         val = f.get('value', '')
         source = f.get('source', '')
-        source_color = '#43a047' if source == 'groq' else '#1976d2'
-        chips += f"""<span style="display: inline-block; background: #f3e5f5; color: #6a1b9a;
-                     padding: 4px 10px; border-radius: 12px; font-size: 0.85rem;
-                     margin: 3px; border: 1px solid #ce93d8;">
-                     {name}: <strong>{val}</strong>
-                     </span>"""
+        src_label, src_color = source_labels.get(source, (source or '?', '#475569'))
+        conf = float(f.get('confidence', 0.0) or 0.0)
+        conf_pct = int(round(conf * 100))
+        # Confidence colour: green ≥ 90, amber 70-89, red < 70
+        if conf >= 0.90:
+            conf_color = '#059669'
+        elif conf >= 0.70:
+            conf_color = '#D97706'
+        else:
+            conf_color = '#DC2626'
+        src_counts[src_label] = src_counts.get(src_label, 0) + 1
+        avg_conf += conf
+        n += 1
+
+        chips += f"""
+<span style="display: inline-flex; align-items: center; gap: 6px;
+             background: #FAF5FF; color: #6A1B9A;
+             padding: 4px 10px; border-radius: 14px; font-size: 0.85rem;
+             margin: 3px; border: 1px solid #E1BEE7;">
+   {name}: <strong>{val}</strong>
+   <span style="background: {src_color}; color: white; font-size: 0.7rem;
+                padding: 1px 6px; border-radius: 8px; font-weight: 600;">
+       {src_label}
+   </span>
+   <span style="background: {conf_color}; color: white; font-size: 0.7rem;
+                padding: 1px 6px; border-radius: 8px; font-weight: 600;">
+       {conf_pct}%
+   </span>
+</span>"""
+
+    avg_pct = int(round((avg_conf / max(n, 1)) * 100))
+    src_summary = ' · '.join(f"{lbl} ×{c}" for lbl, c in src_counts.items())
+    overall_label = ('متوسط الثقة' if language == 'ar' else 'Average confidence')
 
     return f"""
-    <div style="margin: 8px 0; padding: 10px 14px; background: #faf5ff;
-                border-radius: 10px; border: 1px solid #e1bee7;">
-        <div style="font-weight: 600; color: #7b1fa2; font-size: 0.85rem; margin-bottom: 6px;">
-            {field_label}
-        </div>
-        <div>{chips}</div>
+<div style="margin: 8px 0; padding: 10px 14px; background: #FAF5FF;
+            border-radius: 10px; border: 1px solid #E1BEE7;">
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between;
+                align-items:center; gap: 8px;
+                font-weight: 600; color: #7B1FA2; font-size: 0.85rem; margin-bottom: 6px;">
+        <span>{field_label}</span>
+        <span style="font-weight: 500; color: #6B7280; font-size: 0.78rem;">
+            {src_summary} &nbsp;·&nbsp; {overall_label}:
+            <span style="color: #059669; font-weight: 700;">{avg_pct}%</span>
+        </span>
     </div>
-    """
+    <div>{chips}</div>
+</div>"""
 
 
 def get_smart_conversation_html(chat_history, language='ar'):
