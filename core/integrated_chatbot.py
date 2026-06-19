@@ -282,17 +282,27 @@ class IntegratedSelfReasoningChatbot:
     # context of the asked field so the conversation does not loop on
     # the same question.
     _YES_WORDS = {
+        # Arabic
         'نعم', 'أيوا', 'أيوة', 'أيوه', 'اي', 'إي', 'بلى', 'يوجد',
-        'موجود', 'أعاني', 'صحيح', 'yes', 'y', 'yeah', 'yep', 'true',
+        'موجود', 'أعاني', 'صحيح', 'أكيد',
+        # English
+        'yes', 'y', 'yeah', 'yep', 'yup', 'sure', 'true', 'correct',
+        'affirmative', 'absolutely',
     }
     _NO_WORDS = {
+        # Arabic
         'لا', 'كلا', 'كلّا', 'مافي', 'ما في', 'ما يوجد', 'ما عندي',
-        'ما أعاني', 'لا أعاني', 'لا يوجد', 'لا أشكي', 'no', 'n',
-        'nope', 'never', 'false',
+        'ما أعاني', 'لا أعاني', 'لا يوجد', 'لا أشكي', 'أبداً', 'لم',
+        # English
+        'no', 'n', 'nope', 'nah', 'never', 'none', 'false', 'negative',
+        "don't", 'not at all', 'without',
     }
     _NORMAL_WORDS = {
+        # Arabic
         'طبيعي', 'عادي', 'سليم', 'بخير', 'مظبوط', 'مضبوط', 'تمام',
-        'normal', 'fine', 'healthy', 'ok', 'good',
+        # English
+        'normal', 'fine', 'healthy', 'ok', 'okay', 'good', 'great',
+        'within range', 'within normal', 'unremarkable',
     }
 
     # Arabic diacritics, tatweel, and the various alif / ya / ta-marbuta
@@ -325,10 +335,25 @@ class IntegratedSelfReasoningChatbot:
 
     @classmethod
     def _has_word(cls, text_lower: str, words) -> bool:
+        """Substring match for long keywords, word-boundary match for
+        short ones (≤ 3 chars). Without the boundary check, single
+        letters like "n", "y", "m" would match every word that simply
+        contains that letter ("angina" → "n", "hypertension" → "n"),
+        flooding the classifier with false positives.
+        """
+        import re as _re
         norm = cls._normalize_ar(text_lower)
         for w in words:
-            if cls._normalize_ar(w) in norm:
-                return True
+            nw = cls._normalize_ar(w)
+            if not nw:
+                continue
+            if len(nw) <= 3:
+                # Word-boundary match for very short tokens
+                if _re.search(r'(?<![\w]) ?' + _re.escape(nw) + r' ?(?![\w])', norm):
+                    return True
+            else:
+                if nw in norm:
+                    return True
         return False
 
     # ──────────────────────────────────────────────────────────────────
@@ -406,26 +431,34 @@ class IntegratedSelfReasoningChatbot:
             v = self._first_int(text, 1, 120)
             if v is not None:
                 return v
-            if 'طفل' in text_lower or 'child' in text_lower:
+            if 'طفل' in text_lower or 'baby' in text_lower or 'child' in text_lower or 'kid' in text_lower:
                 return 10
-            if 'شاب' in text_lower or 'young' in text_lower:
+            if 'مراهق' in text_lower or 'teenager' in text_lower or 'teen' in text_lower:
+                return 16
+            if 'شاب' in text_lower or 'young' in text_lower or 'youth' in text_lower:
                 return 25
-            if 'كبير' in text_lower or 'مسن' in text_lower or 'elderly' in text_lower or 'old' in text_lower:
+            if 'بالغ' in text_lower or 'adult' in text_lower or 'middle-aged' in text_lower:
+                return 45
+            if ('كبير' in text_lower or 'مسن' in text_lower or 'elderly' in text_lower
+                    or 'old' in text_lower or 'aged' in text_lower or 'senior' in text_lower):
                 return 70
             return None
 
         # ─────────────────────── 2. Sex ───────────────────────
         if field_name == 'Sex':
             stripped = text_lower.strip()
-            if (stripped in ('f', 'female')
+            if (stripped in ('f', 'female', 'fem')
                     or 'انثي' in text_lower or 'امراه' in text_lower
                     or 'بنت' in text_lower or 'سيده' in text_lower
-                    or 'female' in text_lower or 'woman' in text_lower):
+                    or 'female' in text_lower or 'woman' in text_lower
+                    or 'lady' in text_lower or 'girl' in text_lower
+                    or 'gal' in text_lower):
                 return 'Female'
-            if (stripped in ('m', 'male')
+            if (stripped in ('m', 'male', 'masc')
                     or 'ذكر' in text_lower or 'رجل' in text_lower
                     or 'ولد' in text_lower or 'male' in text_lower
-                    or 'man' in text_lower):
+                    or 'man' in text_lower or 'guy' in text_lower
+                    or 'boy' in text_lower or 'gentleman' in text_lower):
                 return 'Male'
             return None
 
@@ -434,27 +467,35 @@ class IntegratedSelfReasoningChatbot:
             if is_no or is_normal:
                 return 'ASY'
             if ('asy' in text_lower or 'asymptomatic' in text_lower
-                    or 'بدون اعراض' in text_lower or 'ما اشكي' in text_lower):
+                    or 'بدون اعراض' in text_lower or 'ما اشكي' in text_lower
+                    or 'no pain' in text_lower or 'painless' in text_lower
+                    or 'chest fine' in text_lower or 'chest ok' in text_lower
+                    or 'no symptoms' in text_lower):
                 return 'ASY'
             if ('غير نموذجي' in text_lower or 'atypical' in text_lower
-                    or text_lower.strip() == 'ata'):
+                    or 'unusual' in text_lower or text_lower.strip() == 'ata'):
                 return 'ATA'
             if ('غير ذبحه' in text_lower or 'non-anginal' in text_lower
+                    or 'non anginal' in text_lower or 'nonanginal' in text_lower
                     or 'ليس ذبحه' in text_lower or text_lower.strip() == 'nap'):
                 return 'NAP'
             if ('نموذجي' in text_lower or 'typical' in text_lower
                     or 'ذبحه صدريه' in text_lower or 'angina' in text_lower
+                    or 'crushing' in text_lower or 'pressure' in text_lower
+                    or 'heaviness' in text_lower or 'tightness' in text_lower
                     or text_lower.strip() == 'ta'):
                 return 'TA'
             if ('الم' in text_lower or 'pain' in text_lower
-                    or 'يوجعني' in text_lower or 'وجع' in text_lower):
+                    or 'ache' in text_lower or 'discomfort' in text_lower
+                    or 'يوجعني' in text_lower or 'وجع' in text_lower
+                    or 'hurts' in text_lower or 'sore' in text_lower):
                 return 'TA'
             return None
 
         # ─────────────────────── 4. BloodPressure ───────────────────────
         if field_name == 'BloodPressure':
-            # Two numbers — accept "/", "على", "on", "\".
-            m = _re.search(r'(\d{2,3})\s*(?:[/\\]|على|\bon\b)\s*(\d{2,3})',
+            # Two numbers — accept "/", "على", "on", "over", "\".
+            m = _re.search(r'(\d{2,3})\s*(?:[/\\]|على|\bon\b|\bover\b)\s*(\d{2,3})',
                            text, _re.IGNORECASE)
             if m:
                 s, d = int(m.group(1)), int(m.group(2))
@@ -466,10 +507,12 @@ class IntegratedSelfReasoningChatbot:
             if is_normal or is_no:
                 return "120/80"
             if ('مرتفع' in text_lower or 'عالي' in text_lower
-                    or 'high' in text_lower or 'hypertension' in text_lower):
+                    or 'high' in text_lower or 'elevated' in text_lower
+                    or 'hypertension' in text_lower or 'hypertensive' in text_lower
+                    or 'htn' in text_lower):
                 return "150/95"
             if ('منخفض' in text_lower or 'low' in text_lower
-                    or 'hypotension' in text_lower):
+                    or 'hypotension' in text_lower or 'hypotensive' in text_lower):
                 return "95/60"
             return None
 
@@ -478,7 +521,9 @@ class IntegratedSelfReasoningChatbot:
             v = self._first_int(text, 80, 700)
             if v is not None:
                 return v
-            if 'مرتفع' in text_lower or 'عالي' in text_lower or 'high' in text_lower:
+            if ('مرتفع' in text_lower or 'عالي' in text_lower
+                    or 'high' in text_lower or 'elevated' in text_lower
+                    or 'hyperlipidemia' in text_lower):
                 return 260
             if 'منخفض' in text_lower or 'low' in text_lower:
                 return 150
@@ -492,7 +537,9 @@ class IntegratedSelfReasoningChatbot:
             if is_normal or is_no:
                 return 0
             if ('مرتفع' in text_lower or 'عالي' in text_lower
-                    or 'high' in text_lower or 'diabetic' in text_lower
+                    or 'high' in text_lower or 'elevated' in text_lower
+                    or 'diabetic' in text_lower or 'diabetes' in text_lower
+                    or 'prediabetic' in text_lower or 'hyperglycemia' in text_lower
                     or 'مريض سكر' in text_lower or 'سكري' in text_lower
                     or 'سكر' in text_lower):
                 return 1
@@ -506,9 +553,12 @@ class IntegratedSelfReasoningChatbot:
             if is_normal or is_no:
                 return 'Normal'
             if ('lvh' in text_lower or 'تضخم البطين' in text_lower
-                    or 'تضخم' in text_lower or 'ventricular hypertrophy' in text_lower):
+                    or 'تضخم' in text_lower or 'ventricular hypertrophy' in text_lower
+                    or 'left ventricle' in text_lower or 'enlargement' in text_lower):
                 return 'LVH'
             if ('st-t' in text_lower or 'st wave' in text_lower
+                    or 'st depression' in text_lower or 'st elevation' in text_lower
+                    or 'ischemia' in text_lower or 'ischemic' in text_lower
                     or 'موجه' in text_lower or 'اضطراب' in text_lower
                     or text_lower.strip() == 'st'):
                 return 'ST'
@@ -524,10 +574,13 @@ class IntegratedSelfReasoningChatbot:
             if v is not None:
                 return v
             if ('مرتفع' in text_lower or 'سريع' in text_lower
-                    or 'high' in text_lower or 'fast' in text_lower):
+                    or 'high' in text_lower or 'fast' in text_lower
+                    or 'tachycardia' in text_lower or 'tachycardic' in text_lower
+                    or 'racing' in text_lower):
                 return 180
             if ('منخفض' in text_lower or 'بطيء' in text_lower
-                    or 'low' in text_lower or 'slow' in text_lower):
+                    or 'low' in text_lower or 'slow' in text_lower
+                    or 'bradycardia' in text_lower or 'bradycardic' in text_lower):
                 return 110
             if is_normal or is_no:
                 return 150
@@ -547,24 +600,35 @@ class IntegratedSelfReasoningChatbot:
             v = self._first_float(text, 0.0, 10.0)
             if v is not None:
                 return v
+            # Qualitative severity FIRST (mild / moderate / severe), so
+            # phrasings like "mild depression" don't fall through to the
+            # is_no/is_normal default of 0.0.
+            if ('شديد' in text_lower or 'severe' in text_lower
+                    or 'significant' in text_lower or 'pronounced' in text_lower):
+                return 3.0
+            if ('متوسط' in text_lower or 'moderate' in text_lower
+                    or 'medium' in text_lower):
+                return 1.5
+            if ('خفيف' in text_lower or 'mild' in text_lower
+                    or 'minimal' in text_lower or 'slight' in text_lower):
+                return 0.5
             if is_normal or is_no:
                 return 0.0
-            if 'شديد' in text_lower or 'severe' in text_lower:
-                return 3.0
-            if 'متوسط' in text_lower or 'moderate' in text_lower:
-                return 1.5
-            if 'خفيف' in text_lower or 'mild' in text_lower:
-                return 0.5
             return None
 
         # ─────────────────────── 11. ST_Slope ───────────────────────
         if field_name == 'ST_Slope':
-            if 'up' in text_lower or 'صاعد' in text_lower or 'upslop' in text_lower:
+            if ('upslop' in text_lower or 'upward' in text_lower
+                    or 'rising' in text_lower or 'صاعد' in text_lower
+                    or text_lower.strip() in ('up', 'u')):
                 return 'Up'
-            if ('down' in text_lower or 'هابط' in text_lower
-                    or 'منحدر' in text_lower or 'downslop' in text_lower):
+            if ('downslop' in text_lower or 'downward' in text_lower
+                    or 'descending' in text_lower or 'هابط' in text_lower
+                    or 'منحدر' in text_lower or text_lower.strip() in ('down', 'd')):
                 return 'Down'
-            if 'flat' in text_lower or 'مسطح' in text_lower or is_normal:
+            if ('flat' in text_lower or 'horizontal' in text_lower
+                    or 'straight' in text_lower or 'مسطح' in text_lower
+                    or is_normal):
                 return 'Flat'
             return None
 
