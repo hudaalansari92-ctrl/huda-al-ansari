@@ -1536,49 +1536,24 @@ def render_main_area():
                             'content': _skip_msg,
                         })
                     elif smart_attempt and smart_attempt.get('field'):
-                        # Purpose label for this attempt
-                        if smart_attempt['attempts'] == 1:
-                            _purpose = t('attempt_purpose_example', lang)
-                        else:
-                            _purpose = t('attempt_purpose_last', lang)
-                        _counter_line = t('attempt_counter', lang).format(
-                            n=smart_attempt['attempts'],
-                            max=smart_attempt['max_attempts'],
-                            purpose=_purpose,
-                        )
-                        _rephrase_label = ('🩺 إعادة صياغة السؤال:'
+                        # Minimal rephrase — header + the next prompt only.
+                        # No counter line, no dodge notice, no icons, no
+                        # coloured box: just plain text inside the doctor
+                        # bubble per user spec.
+                        _rephrase_label = ('إعادة صياغة السؤال:'
                                            if lang == 'ar'
-                                           else "🩺 Let me rephrase the question:")
+                                           else "Let me rephrase the question:")
                         _next_prompt = smart_attempt.get('next_prompt') or ''
-                        _dodge_line = (
-                            'لكن لم تُجب على السؤال المطروح — دعني أعيد صياغته:'
-                            if lang == 'ar'
-                            else "But you haven't answered the question I asked — let me rephrase it:"
-                        )
-                        # Render-time tip: the doctor bubble drops raw \n
-                        # because it's plain HTML, which made the emojis
-                        # blur into one wall of text. Wrap each line in a
-                        # styled <div> so the 🩺 / ⚠️ / 👉 icons sit on
-                        # their own line and read as a structured panel.
-                        _bundled = (
-                            f'<div style="margin-bottom:8px;">{_dodge_line}</div>'
-                            f'<div style="background:#fff8e1; padding:8px 12px; '
-                            f'border-radius:8px; border-left:4px solid #ffb300; '
-                            f'margin-bottom:8px; font-weight:600;">{_counter_line}</div>'
-                        )
                         if _next_prompt:
-                            _bundled += (
-                                f'<div style="background:#e3f2fd; padding:10px 14px; '
-                                f'border-radius:8px; border-left:4px solid #1976d2;">'
-                                f'<div style="font-weight:600; margin-bottom:4px;">'
+                            _bundled = (
+                                f'<div style="font-weight:600; margin-bottom:6px;">'
                                 f'{_rephrase_label}</div>'
                                 f'<div>{_next_prompt}</div>'
-                                f'</div>'
                             )
-                        st.session_state.smart_chat_history.append({
-                            'role': 'doctor',
-                            'content': _bundled,
-                        })
+                            st.session_state.smart_chat_history.append({
+                                'role': 'doctor',
+                                'content': _bundled,
+                            })
 
                     # Save session
                     st.session_state.conversation_steps.append(result)
@@ -1825,50 +1800,22 @@ def render_main_area():
                                                  key="continue_after_skip"):
                                         st.rerun()
                             elif attempt['field']:
-                                # Purpose label for this attempt:
-                                #   1 → "with example"
-                                #   2 → "last try + warning"
-                                # so the patient sees the goal of each try,
-                                # not just "N tries left".
-                                if attempt['attempts'] == 1:
-                                    purpose = t('attempt_purpose_example', lang)
-                                else:
-                                    purpose = t('attempt_purpose_last', lang)
-
-                                # Progressive rephrase block — show the
-                                # next, more helpful phrasing of the same
-                                # question instead of repeating the original
-                                # word-for-word.
+                                # Minimal rephrase — header + next prompt
+                                # only. No counter, no coloured box, no
+                                # icons, plain readable text per user spec.
                                 next_prompt = attempt.get('next_prompt') or ''
-                                rephrase_block = ''
                                 if next_prompt:
-                                    rephrase_label = ('🩺 إعادة صياغة السؤال:'
+                                    rephrase_label = ('إعادة صياغة السؤال:'
                                                       if lang == 'ar'
-                                                      else "🩺 Let me rephrase the question:")
-                                    rephrase_block = f"""
-                                    <div style='margin-top: 10px; padding: 12px 14px;
-                                                background: #e3f2fd; border-radius: 10px;
-                                                border-left: 4px solid #1976d2;'>
-                                        <div style='font-weight: 600; color: #0d47a1;
-                                                    font-size: 0.82rem; margin-bottom: 4px;'>
+                                                      else "Let me rephrase the question:")
+                                    st.html(f"""
+                                    <div style='margin-top: 10px; padding: 4px 0;'>
+                                        <div style='font-weight: 600; margin-bottom: 6px;'>
                                             {rephrase_label}
                                         </div>
-                                        <div style='color: #0d47a1; font-size: 0.95rem; line-height: 1.5;'>
-                                            {next_prompt}
-                                        </div>
-                                    </div>"""
-
-                                st.html(f"""
-                                <div style='background: #fff8e1; padding: 12px; border-radius: 10px;
-                                            margin-top: 10px; border-left: 4px solid #ffb300;'>
-                                    {t('attempt_counter', lang).format(
-                                        n=attempt['attempts'],
-                                        max=attempt['max_attempts'],
-                                        purpose=purpose,
-                                    )}
-                                    {rephrase_block}
-                                </div>
-                                """)
+                                        <div>{next_prompt}</div>
+                                    </div>
+                                    """)
 
                             st.html(f"""
                             <div style='background: #fff3cd; padding: 15px; border-radius: 10px;
