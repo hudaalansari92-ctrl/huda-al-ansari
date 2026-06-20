@@ -1439,6 +1439,14 @@ def render_main_area():
                     st.rerun()
 
                 if send_btn and user_input and user_input.strip():
+                    # Capture the field the chatbot was asking about BEFORE
+                    # process_smart_input mutates state. We need this to
+                    # detect "the patient dodged the asked question" even
+                    # when other fields got extracted instead.
+                    asked_before = getattr(
+                        st.session_state.chatbot, '_last_asked_field', None
+                    )
+
                     # Add patient message to chat history
                     st.session_state.smart_chat_history.append({
                         'role': 'patient',
@@ -1452,6 +1460,31 @@ def render_main_area():
                     # Update extracted fields in last patient message
                     if result.get('extracted_fields'):
                         st.session_state.smart_chat_history[-1]['extracted_fields'] = result['extracted_fields']
+
+                    # Wrong-field / no-answer detection: did the patient
+                    # actually answer the question we asked, or did they
+                    # answer something else (or nothing at all)?
+                    extracted_field_names = {
+                        it.get('field') for it in (result.get('extracted_fields') or [])
+                    }
+                    answered_asked_field = (
+                        asked_before is None
+                        or asked_before in extracted_field_names
+                    )
+
+                    # If the asked field was missed, register a failed
+                    # attempt against it. After MAX_ATTEMPTS the chatbot
+                    # auto-skips with the clinical default. Otherwise we
+                    # surface "محاولة N/3 — مع مثال" + the rephrased
+                    # version of the same question, just like the classic
+                    # mode does.
+                    smart_attempt = None
+                    if not answered_asked_field and asked_before:
+                        smart_attempt = (
+                            st.session_state.chatbot.register_failed_attempt(
+                                field_name=asked_before
+                            )
+                        )
 
                     # Add doctor response
                     if result.get('mode') == 'smart' and result.get('doctor_response'):
@@ -1488,6 +1521,48 @@ def render_main_area():
                                 'content': doctor_msg
                             })
                         st.info(t('smart_fallback_notice', lang))
+
+                    # If the patient dodged the asked question, append a
+                    # forced "محاولة N/3 — مع مثال" doctor message so the
+                    # rephrase + counter shows up in the chat regardless
+                    # of whether Groq generated its own response.
+                    if smart_attempt and smart_attempt.get('auto_skipped'):
+                        _skip_msg = t('auto_skipped', lang).format(
+                            max=smart_attempt['max_attempts'],
+                            value=smart_attempt['skipped_value'],
+                        )
+                        st.session_state.smart_chat_history.append({
+                            'role': 'doctor',
+                            'content': _skip_msg,
+                        })
+                    elif smart_attempt and smart_attempt.get('field'):
+                        # Purpose label for this attempt
+                        if smart_attempt['attempts'] == 1:
+                            _purpose = t('attempt_purpose_example', lang)
+                        else:
+                            _purpose = t('attempt_purpose_last', lang)
+                        _counter_line = t('attempt_counter', lang).format(
+                            n=smart_attempt['attempts'],
+                            max=smart_attempt['max_attempts'],
+                            purpose=_purpose,
+                        )
+                        _rephrase_label = ('🩺 إعادة صياغة السؤال:'
+                                           if lang == 'ar'
+                                           else "🩺 Let me rephrase the question:")
+                        _next_prompt = smart_attempt.get('next_prompt') or ''
+                        _dodge_line = (
+                            'لكن لم تُجب على السؤال المطروح — دعني أعيد صياغته:'
+                            if lang == 'ar'
+                            else "But you haven't answered the question I asked — let me rephrase it:"
+                        )
+                        # Bundle as one doctor turn so it stays inline with chat
+                        _bundled = (f"{_dodge_line}\n\n{_counter_line}"
+                                    + (f"\n\n{_rephrase_label}\n{_next_prompt}"
+                                       if _next_prompt else ""))
+                        st.session_state.smart_chat_history.append({
+                            'role': 'doctor',
+                            'content': _bundled,
+                        })
 
                     # Save session
                     st.session_state.conversation_steps.append(result)
