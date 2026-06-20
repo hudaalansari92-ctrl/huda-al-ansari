@@ -81,7 +81,7 @@ UI_TEXT = {
         'tip2': 'اذكر الكلمات المفتاحية (عمر، ضغط، كوليسترول، ألم)',
         'tip3': 'يمكنك الكتابة بالعربية أو الإنجليزية',
         'tip4': 'جرب صياغة مختلفة للجمل',
-        'attempt_counter': '⚠️ المحاولة {n} من {max} — ما زالت لديك {remaining} محاولات قبل الانتقال للسؤال التالي.',
+        'attempt_counter': '⚠️ المحاولة {n} من {max} — متبقّي {remaining} {tries_label} قبل الانتقال للسؤال التالي.',
         'auto_skipped': '⏭️ تم تخطّي السؤال تلقائياً بعد {max} محاولات. تم تسجيل القيمة الطبيعية الافتراضية ({value}) — يستطيع الطبيب مراجعتها لاحقاً.',
         'skipped_badge': 'مُتخطى',
 
@@ -294,7 +294,7 @@ UI_TEXT = {
         'transitioning': 'Transitioning to next question...',
         'could_not_extract': 'Could not extract clear information from the text.',
         'tips_title': 'Tips for better results:',
-        'attempt_counter': '⚠️ Attempt {n} of {max} — you still have {remaining} tries before we move on to the next question.',
+        'attempt_counter': '⚠️ Attempt {n} of {max} — {remaining} {tries_label} left before we move on to the next question.',
         'auto_skipped': '⏭️ Skipped automatically after {max} attempts. Recorded the clinical default ({value}) so the doctor can review it later.',
         'skipped_badge': 'Skipped',
         'tip1': 'Use clear numbers (e.g.: 55, 140/90)',

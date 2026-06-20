@@ -1662,13 +1662,20 @@ def render_main_area():
                                                  key="continue_after_skip"):
                                         st.rerun()
                             elif attempt['field']:
+                                # Pick singular vs plural label so the
+                                # counter reads naturally in both languages.
+                                if lang == 'ar':
+                                    tries_label = 'محاولة' if attempt['remaining'] == 1 else 'محاولات'
+                                else:
+                                    tries_label = 'try' if attempt['remaining'] == 1 else 'tries'
                                 st.html(f"""
                                 <div style='background: #fff8e1; padding: 12px; border-radius: 10px;
                                             margin-top: 10px; border-left: 4px solid #ffb300;'>
                                     {t('attempt_counter', lang).format(
                                         n=attempt['attempts'],
                                         max=attempt['max_attempts'],
-                                        remaining=attempt['remaining']
+                                        remaining=attempt['remaining'],
+                                        tries_label=tries_label
                                     )}
                                 </div>
                                 """)
