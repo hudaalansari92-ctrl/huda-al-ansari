@@ -10,12 +10,26 @@ logger = logging.getLogger('biobert_ner')
 _AR_DIACRITICS = re.compile(r'[ً-ٰٟـ]')
 
 _NORMAL_WORDS = {
+    # Modern Standard Arabic
     'طبيعي', 'طبيعى', 'طبيعيه', 'طبيعية', 'طبيعيا',
     'عادي', 'عادى', 'عاديه', 'عادية',
     'سليم', 'سليمه', 'سليمة',
-    'منيح', 'زين', 'كويس', 'كويسه', 'تمام',
-    'normal', 'ok', 'fine', 'healthy', 'good', 'okay',
+    # Iraqi / Levantine dialect
+    'منيح', 'زين', 'كويس', 'كويسه', 'تمام', 'بخير', 'مظبوط', 'مضبوط',
+    # English (single tokens)
+    'normal', 'ok', 'okay', 'fine', 'healthy', 'good', 'great',
+    'perfect', 'excellent', 'fantastic', 'awesome', 'stable',
+    'steady', 'regular', 'alright', 'allright', 'swell', 'lovely',
+    'clear', 'controlled', 'managed', 'unremarkable',
 }
+
+# Multi-word English phrases that signal "normal" (checked separately)
+_NORMAL_PHRASES_EN = (
+    'all good', 'all clear', 'all fine', 'no problem', 'no problems',
+    'no issues', 'no issue', 'nothing wrong', 'within range',
+    'within normal range', 'within normal', 'under control',
+    'in control', 'no complaints',
+)
 
 _NORMAL_DEFAULTS = {
     'ChestPain':       'ASY',
@@ -62,17 +76,34 @@ class BioBERTNER:
     @classmethod
     def _is_normal_only(cls, text: str) -> bool:
         """
-        هل النص هو فقط كلمة 'طبيعي' / 'normal' بدون أي رقم أو محتوى آخر؟
+        هل النص يدل على 'طبيعي' فقط — كلمة واحدة أو عبارة قصيرة بالإنكليزية
+        مثل 'all good' / 'no problem' / 'within normal range'؟
         """
         if not text:
             return False
         clean = cls._normalize_ar(text)
         if re.search(r'\d', clean):
             return False
+
+        # Check English multi-word phrases first (e.g., "all good", "no problem")
+        clean_squeezed = re.sub(r'\s+', ' ', clean).strip()
+        if any(phrase in clean_squeezed for phrase in _NORMAL_PHRASES_EN):
+            # Make sure the WHOLE message is just the phrase (+ filler words)
+            stripped = clean_squeezed
+            for phrase in _NORMAL_PHRASES_EN:
+                stripped = stripped.replace(phrase, ' ')
+            leftover = re.findall(r'[؀-ۿa-z]+', stripped)
+            filler = {'is', 'are', 'it', 'the', 'a', 'my', 'im', "i'm", 'feel', 'feeling'}
+            if all(t in filler for t in leftover):
+                return True
+
+        # Single-word / standalone token check
         tokens = re.findall(r'[؀-ۿa-z]+', clean)
         if not tokens:
             return False
-        meaningful = [t for t in tokens if t not in {'هو', 'هي', 'و', 'يكون', 'is', 'are', 'it', 'the', 'a'}]
+        filler = {'هو', 'هي', 'و', 'يكون', 'is', 'are', 'it', 'the', 'a',
+                  'my', 'im', 'feel', 'feeling', 'all', 'pretty', 'quite', 'very'}
+        meaningful = [t for t in tokens if t not in filler]
         if not meaningful:
             return False
         return all(t in _NORMAL_WORDS for t in meaningful)
@@ -459,10 +490,19 @@ class BioBERTNER:
 
     # Sentence-level "the patient said the value is normal/healthy" helper.
     # Returns True if `text` contains a feature-naming keyword AND a
-    # normal/healthy keyword. Used for phrasings like "ضغطي طبيعي".
+    # normal/healthy keyword. Used for phrasings like "ضغطي طبيعي" or
+    # "my BP is perfect".
     _NORMAL_KEYWORDS = (
+        # Arabic + dialect
         'طبيعي', 'عادي', 'سليم', 'بخير', 'مظبوط', 'مضبوط',
-        'normal', 'fine', 'healthy', 'ok'
+        'منيح', 'زين', 'كويس', 'تمام',
+        # English (single tokens)
+        'normal', 'fine', 'healthy', 'ok', 'okay', 'good', 'great',
+        'perfect', 'excellent', 'stable', 'steady', 'alright',
+        'fantastic', 'awesome', 'controlled', 'managed', 'unremarkable',
+        # English phrases (substring match still works for these)
+        'all good', 'no problem', 'no issue', 'within normal',
+        'within range', 'under control', 'nothing wrong',
     )
 
     def _mentions_normal(self, text: str, feature_keywords) -> bool:
