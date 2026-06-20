@@ -1361,15 +1361,56 @@ def render_main_area():
                 )
                 if audio_input:
                     with st.spinner(t('voice_recording', lang)):
-                        _transcribed = None
-                        if st.session_state.chatbot and hasattr(st.session_state.chatbot, 'groq_client'):
-                            _transcribed = st.session_state.chatbot.groq_client.transcribe(audio_input, lang)
-                        if _transcribed:
-                            st.session_state.voice_transcription = _transcribed
-                            st.session_state.input_key_counter += 1
-                            st.rerun()
+                        # Diagnose every possible failure path explicitly so
+                        # the patient knows *why* nothing happened instead
+                        # of seeing a generic "not supported" warning.
+                        _client = (st.session_state.chatbot.groq_client
+                                   if (st.session_state.chatbot
+                                       and hasattr(st.session_state.chatbot, 'groq_client'))
+                                   else None)
+
+                        if _client is None:
+                            st.error(
+                                'الميزة الصوتية تحتاج Groq API. الرجاء بدء جلسة جديدة.'
+                                if lang == 'ar'
+                                else 'Voice input requires Groq API. Please start a new session.'
+                            )
+                        elif not _client.is_available:
+                            st.error(
+                                'مفتاح Groq API غير مُفعَّل. الميزة الصوتية غير متاحة حالياً.'
+                                if lang == 'ar'
+                                else 'Groq API key is not configured. Voice input is unavailable.'
+                            )
                         else:
-                            st.warning(t('voice_not_supported', lang))
+                            try:
+                                _bytes = audio_input.getvalue() if hasattr(audio_input, 'getvalue') else audio_input.read()
+                                if not _bytes or len(_bytes) < 1000:
+                                    st.warning(
+                                        'التسجيل قصير جداً. اضغطي على زر التسجيل وتكلمي لـ 2-3 ثوانٍ على الأقل.'
+                                        if lang == 'ar'
+                                        else 'Recording is too short. Press the record button and speak for at least 2-3 seconds.'
+                                    )
+                                else:
+                                    # Re-create a file-like view from the bytes (audio_input.read()
+                                    # is single-shot — calling it twice returns b'').
+                                    import io as _io_v
+                                    _transcribed = _client.transcribe(_io_v.BytesIO(_bytes), lang)
+                                    if _transcribed and _transcribed.strip():
+                                        st.session_state.voice_transcription = _transcribed
+                                        st.session_state.input_key_counter += 1
+                                        st.rerun()
+                                    else:
+                                        st.warning(
+                                            'تعذّر فهم الصوت. حاولي مرة أخرى في مكان أهدأ.'
+                                            if lang == 'ar'
+                                            else 'Could not understand the audio. Try again in a quieter environment.'
+                                        )
+                            except Exception as _voice_err:
+                                st.error(
+                                    f"خطأ في الميزة الصوتية: {_voice_err}"
+                                    if lang == 'ar'
+                                    else f"Voice input error: {_voice_err}"
+                                )
 
                 col_send, col_clear = st.columns([3, 1])
                 with col_send:

@@ -80,14 +80,14 @@ class GroqClient:
 
     def transcribe(self, audio_file, language: str = 'ar') -> Optional[str]:
         """
-        Transcribe audio using Groq Whisper API
+        Transcribe audio using Groq Whisper API.
 
         Args:
-            audio_file: Audio file-like object (e.g. from st.audio_input)
+            audio_file: Audio file-like object (BytesIO or st.audio_input result)
             language: Language code ('ar' or 'en')
 
         Returns:
-            Transcribed text or None if failed
+            Transcribed text. None on failure (with detailed log).
         """
         if not self.is_available:
             logger.warning("Groq client not available for transcription")
@@ -95,14 +95,30 @@ class GroqClient:
 
         try:
             lang_code = 'ar' if language == 'ar' else 'en'
+
+            # audio_file may be a BytesIO or a raw st.audio_input object.
+            if hasattr(audio_file, 'getvalue'):
+                data = audio_file.getvalue()
+            elif hasattr(audio_file, 'read'):
+                data = audio_file.read()
+            else:
+                data = bytes(audio_file)
+
+            if not data:
+                logger.warning("Empty audio data passed to transcribe()")
+                return None
+
+            logger.info(f"Transcribing {len(data)} bytes of audio (lang={lang_code})")
+
             transcription = self._client.audio.transcriptions.create(
-                file=("audio.webm", audio_file.read()),
+                file=("audio.webm", data),
                 model="whisper-large-v3-turbo",
-                language=lang_code
+                language=lang_code,
             )
-            result = transcription.text
-            logger.info(f"Transcription successful ({len(result)} chars)")
-            return result
+            result = (transcription.text or '').strip()
+            logger.info(f"Transcription successful ({len(result)} chars): "
+                        f"{result[:60]!r}")
+            return result or None
         except Exception as e:
-            logger.error(f"Transcription failed: {e}")
+            logger.exception(f"Transcription failed: {e}")
             return None
