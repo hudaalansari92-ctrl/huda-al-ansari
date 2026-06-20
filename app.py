@@ -1527,6 +1527,16 @@ def render_main_area():
                     # rephrase + counter shows up in the chat regardless
                     # of whether Groq generated its own response.
                     if smart_attempt and smart_attempt.get('auto_skipped'):
+                        # The doctor_response we just appended was generated
+                        # before the auto-skip mutated chatbot state, so it
+                        # was still asking about the field we just skipped.
+                        # Drop it so the patient doesn't see "ما هو ضغط دمك؟"
+                        # immediately followed by "تم تخطّي السؤال".
+                        if (st.session_state.smart_chat_history
+                                and st.session_state.smart_chat_history[-1].get('role') == 'doctor'):
+                            st.session_state.smart_chat_history.pop()
+
+                        # Show the auto-skip notice with the stored default.
                         _skip_msg = t('auto_skipped', lang).format(
                             max=smart_attempt['max_attempts'],
                             value=smart_attempt['skipped_value'],
@@ -1535,6 +1545,38 @@ def render_main_area():
                             'role': 'doctor',
                             'content': _skip_msg,
                         })
+
+                        # Advance: pick the new top-priority remaining field
+                        # (auto-skip just added the old one to answered_fields,
+                        # so it falls out of the candidate set) and post the
+                        # L1 question for it so the chat moves on.
+                        _all_fields = [
+                            'Age', 'Sex', 'ChestPain', 'BloodPressure',
+                            'Cholesterol', 'FastingBS', 'RestingECG',
+                            'MaxHR', 'ExerciseAngina', 'Oldpeak', 'ST_Slope',
+                        ]
+                        _chatbot = st.session_state.chatbot
+                        _remaining = [f for f in _all_fields if f not in _chatbot.answered_fields]
+                        if _remaining:
+                            _priorities = _chatbot.priority_scorer.calculate_priorities(
+                                _chatbot.facts,
+                                _chatbot.current_risk_level,
+                                _chatbot.answered_fields,
+                            )
+                            _next_field = _priorities[0].field_name if _priorities else _remaining[0]
+                            _chatbot._last_asked_field = _next_field
+                            _next_q = _chatbot.get_rephrased_question(_next_field, 0)
+                            if _next_q:
+                                _bridge = (t('ack_next_question_prefix', lang)
+                                           if lang in ('ar', 'en')
+                                           else 'الآن سؤالي التالي:')
+                                st.session_state.smart_chat_history.append({
+                                    'role': 'doctor',
+                                    'content': f'{_bridge} {_next_q}',
+                                })
+                        else:
+                            # No remaining fields → assessment is ready
+                            st.session_state.show_final_report = True
                     elif smart_attempt and smart_attempt.get('field'):
                         # Minimal rephrase — header + the next prompt only.
                         # No counter line, no dodge notice, no icons, no
