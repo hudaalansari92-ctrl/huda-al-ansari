@@ -81,6 +81,9 @@ UI_TEXT = {
         'tip2': 'اذكر الكلمات المفتاحية (عمر، ضغط، كوليسترول، ألم)',
         'tip3': 'يمكنك الكتابة بالعربية أو الإنجليزية',
         'tip4': 'جرب صياغة مختلفة للجمل',
+        'attempt_counter': '⚠️ المحاولة {n} من {max} — ما زالت لديك {remaining} محاولات قبل الانتقال للسؤال التالي.',
+        'auto_skipped': '⏭️ تم تخطّي السؤال تلقائياً بعد {max} محاولات. تم تسجيل القيمة الطبيعية الافتراضية ({value}) — يستطيع الطبيب مراجعتها لاحقاً.',
+        'skipped_badge': 'مُتخطى',
 
         # Assessment
         'comprehensive_assessment': 'التقييم الشامل - Comprehensive Assessment',
@@ -291,6 +294,9 @@ UI_TEXT = {
         'transitioning': 'Transitioning to next question...',
         'could_not_extract': 'Could not extract clear information from the text.',
         'tips_title': 'Tips for better results:',
+        'attempt_counter': '⚠️ Attempt {n} of {max} — you still have {remaining} tries before we move on to the next question.',
+        'auto_skipped': '⏭️ Skipped automatically after {max} attempts. Recorded the clinical default ({value}) so the doctor can review it later.',
+        'skipped_badge': 'Skipped',
         'tip1': 'Use clear numbers (e.g.: 55, 140/90)',
         'tip2': 'Mention keywords (age, pressure, cholesterol, pain)',
         'tip3': 'You can write in Arabic or English',

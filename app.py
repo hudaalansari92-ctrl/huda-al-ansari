@@ -233,17 +233,35 @@ def display_facts_table(facts: Dict):
         st.info(t('no_facts', lang))
         return
 
+    # Per-field source metadata (for 3-strikes auto-skip badge)
+    field_meta = {}
+    try:
+        if st.session_state.chatbot is not None:
+            field_meta = st.session_state.chatbot.get_field_metadata() or {}
+    except Exception:
+        field_meta = {}
+
     try:
         df_data = []
         field_names = get_field_names_dict(lang)
         col_field = t('col_field', lang)
         col_value = t('col_value', lang)
         col_time = t('col_time', lang)
+        col_source = 'Source' if lang == 'en' else 'المصدر'
 
         for key, value in facts.items():
+            meta = field_meta.get(key) or {}
+            if meta.get('source') == 'skipped':
+                src_text = f"⚠️ {t('skipped_badge', lang)} ({meta.get('attempts', 0)}/3)"
+            elif meta.get('source') == 'user':
+                src_text = '✅ ' + ('User' if lang == 'en' else 'المريض')
+            else:
+                src_text = '—'
+
             df_data.append({
                 col_field: field_names.get(key, key),
                 col_value: str(value) if value is not None else 'N/A',
+                col_source: src_text,
                 col_time: datetime.now().strftime('%H:%M:%S')
             })
 
@@ -1612,6 +1630,48 @@ def render_main_area():
                                     st.rerun()
                         else:
                             st.warning(t('could_not_extract', lang))
+
+                            # 3-strikes auto-skip: register this failed attempt
+                            # against the currently-asked field. If the patient
+                            # has burnt all attempts, the chatbot fills the
+                            # clinical default and moves on automatically.
+                            attempt = st.session_state.chatbot.register_failed_attempt()
+
+                            if attempt['auto_skipped']:
+                                st.session_state.session_data['facts'] = (
+                                    st.session_state.chatbot.facts.copy()
+                                )
+                                st.session_state.storage.save_session(
+                                    st.session_state.current_session_id,
+                                    st.session_state.session_data
+                                )
+                                st.html(f"""
+                                <div style='background: #fff3e0; padding: 15px; border-radius: 10px;
+                                            margin-top: 10px; border-left: 4px solid #fb8c00;'>
+                                    {t('auto_skipped', lang).format(
+                                        max=attempt['max_attempts'],
+                                        value=attempt['skipped_value']
+                                    )}
+                                </div>
+                                """)
+                                col_sk1, col_sk2, col_sk3 = st.columns([1, 2, 1])
+                                with col_sk2:
+                                    if st.button(t('continue_next', lang),
+                                                 use_container_width=True,
+                                                 type="primary",
+                                                 key="continue_after_skip"):
+                                        st.rerun()
+                            elif attempt['field']:
+                                st.html(f"""
+                                <div style='background: #fff8e1; padding: 12px; border-radius: 10px;
+                                            margin-top: 10px; border-left: 4px solid #ffb300;'>
+                                    {t('attempt_counter', lang).format(
+                                        n=attempt['attempts'],
+                                        max=attempt['max_attempts'],
+                                        remaining=attempt['remaining']
+                                    )}
+                                </div>
+                                """)
 
                             st.html(f"""
                             <div style='background: #fff3cd; padding: 15px; border-radius: 10px;

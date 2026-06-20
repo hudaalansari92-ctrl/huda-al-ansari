@@ -326,6 +326,7 @@ def render_extracted_fields_badge(fields, language='ar'):
         'groq':    ('BioBERT & regex', '#059669'),  # green
         'context': ('BioBERT & regex', '#7B1FA2'),  # purple
         'biobert': ('BioBERT & regex', '#1976D2'),  # blue
+        'skipped': (t('skipped_badge', language), '#EA580C'),  # orange — 3-strikes auto-skip
     }
 
     chips = ""

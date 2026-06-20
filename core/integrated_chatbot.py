@@ -10,7 +10,7 @@ from dataclasses import asdict
 from core.self_dialog_manager import SelfDialogManager, InternalThought
 from core.priority_scorer import PriorityScorer, QuestionPriority
 from core.dynamic_question_selector import DynamicQuestionSelector, Question
-from nlp.biobert_ner import BioBERTNER
+from nlp.biobert_ner import BioBERTNER, _NORMAL_DEFAULTS
 from engine.domain_rules_engine import DomainRulesEngine
 
 # New ML components (v6.0.0)
@@ -85,6 +85,16 @@ class IntegratedSelfReasoningChatbot:
         # first turn already has a deterministic value.
         self._last_asked_field: Optional[str] = None
 
+        # 3-strikes auto-skip: track how many times each field failed
+        # extraction. After MAX_ATTEMPTS failures, the chatbot stores the
+        # clinical default and marks the field as 'skipped' so the
+        # patient can move on instead of being stuck in a loop.
+        self.MAX_ATTEMPTS = 3
+        self._field_attempts: Dict[str, int] = {}
+        # Per-field metadata: {'BloodPressure': {'source': 'user'|'skipped',
+        # 'attempts': int}}
+        self._field_metadata: Dict[str, Dict] = {}
+
         logger.info(f"تم إنشاء جلسة جديدة: {self.session_id}")
         if self.groq_client.is_available:
             logger.info("Groq API connected successfully")
@@ -113,6 +123,14 @@ class IntegratedSelfReasoningChatbot:
         self.facts[field_name] = normalized_value
         self.answered_fields.append(field_name)
         logger.info(f"تم تخزين الحقيقة: {field_name} = {normalized_value}")
+
+        # Successful direct answer → mark as user-confirmed and reset
+        # the 3-strikes counter for this field.
+        self._field_attempts.pop(field_name, None)
+        self._field_metadata[field_name] = {
+            'source': 'user',
+            'attempts': 1,
+        }
         
         # الخطوة 3: الحوار الذاتي - تحليل الإجابة
         thought = self.dialog_manager.analyze_answer(
@@ -235,8 +253,93 @@ class IntegratedSelfReasoningChatbot:
                 self.answered_fields.append(field_name)
         
         logger.info(f"Extracted {len(result['extracted'])} fields using BioBERT")
+
+        # Successful extraction → mark all touched fields as user-confirmed
+        # and reset their failed-attempt counter.
+        for item in result['extracted']:
+            fname = item['field']
+            self._field_attempts.pop(fname, None)
+            self._field_metadata[fname] = {
+                'source': 'user',
+                'attempts': 1,
+            }
+
         return result
-    
+
+    # --- 3-strikes auto-skip helpers --------------------------------------
+
+    def register_failed_attempt(self, field_name: Optional[str] = None) -> Dict:
+        """
+        Patient sent something we couldn't extract. Bump the attempt
+        counter for the currently-asked field. After MAX_ATTEMPTS misses
+        we auto-skip the field with the clinical default so the
+        conversation can move on.
+
+        Args:
+            field_name: which field the failed attempt was for. Defaults
+                to whichever field was last asked by the chatbot.
+
+        Returns:
+            dict with keys:
+              - field            : str (the field the counter is for)
+              - attempts         : int (1-based, how many tries so far)
+              - remaining        : int (how many tries are left)
+              - auto_skipped     : bool (True if we just hit MAX_ATTEMPTS)
+              - skipped_value    : the default that was written (if skipped)
+              - max_attempts     : MAX_ATTEMPTS for the UI
+        """
+        field_name = field_name or self._last_asked_field
+        if not field_name:
+            return {'field': None, 'attempts': 0, 'remaining': self.MAX_ATTEMPTS,
+                    'auto_skipped': False, 'skipped_value': None,
+                    'max_attempts': self.MAX_ATTEMPTS}
+
+        self._field_attempts[field_name] = self._field_attempts.get(field_name, 0) + 1
+        attempts = self._field_attempts[field_name]
+        remaining = max(0, self.MAX_ATTEMPTS - attempts)
+
+        if attempts < self.MAX_ATTEMPTS:
+            logger.info(f"[3-strikes] {field_name}: attempt {attempts}/{self.MAX_ATTEMPTS}")
+            return {
+                'field': field_name,
+                'attempts': attempts,
+                'remaining': remaining,
+                'auto_skipped': False,
+                'skipped_value': None,
+                'max_attempts': self.MAX_ATTEMPTS,
+            }
+
+        # We hit the cap → auto-skip with the clinical default.
+        default_value = _NORMAL_DEFAULTS.get(field_name)
+        if default_value is None:
+            # Age / Sex have no clinical "normal" → just give up cleanly.
+            default_value = 'UNKNOWN'
+
+        normalized = self._normalize_value(field_name, default_value)
+        self.facts[field_name] = normalized
+        if field_name not in self.answered_fields:
+            self.answered_fields.append(field_name)
+        self._field_metadata[field_name] = {
+            'source': 'skipped',
+            'attempts': attempts,
+        }
+        logger.warning(
+            f"[3-strikes] {field_name}: skipped after {attempts} attempts, "
+            f"filled with default={normalized}"
+        )
+        return {
+            'field': field_name,
+            'attempts': attempts,
+            'remaining': 0,
+            'auto_skipped': True,
+            'skipped_value': normalized,
+            'max_attempts': self.MAX_ATTEMPTS,
+        }
+
+    def get_field_metadata(self) -> Dict[str, Dict]:
+        """Return per-field source/attempt metadata for UI badges."""
+        return dict(self._field_metadata)
+
     def get_domain_assessment(self) -> Optional[Dict]:
         """
         تقييم شامل باستخدام Domain Rules Engine
