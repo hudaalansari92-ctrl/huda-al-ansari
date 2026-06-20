@@ -721,7 +721,6 @@ def render_sidebar():
 
         # ===== Admin-only: Groq API Key =====
         if is_admin():
-            st.markdown(f"### {t('groq_settings', lang)}")
             try:
                 _default_groq_key = st.secrets["GROQ_API_KEY"]
             except Exception:
