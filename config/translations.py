@@ -181,9 +181,9 @@ UI_TEXT = {
         'smart_extracting': 'جاري تحليل إجابتك...',
         'fields_extracted': 'تم استخراج {count} معلومة',
         'smart_fallback_notice': 'تم التبديل للوضع الكلاسيكي مؤقتاً',
-        'type_your_message': 'اكتب رسالتك للطبيب...',
+        'type_your_message': 'اكتب رسالتك هنا...',
         'send_message': 'إرسال',
-        'smart_greeting_default': 'مرحباً بك! أنا طبيب القلب المختص. أخبرني عن نفسك وعن أي شكوى تعاني منها.',
+        'smart_greeting_default': 'مرحباً بك! أنا نظام شات بوت للرعاية الصحية — هدى الأنصاري. أخبرني عن نفسك وعن أي شكوى تعاني منها.',
         'all_fields_collected': 'تم جمع جميع المعلومات المطلوبة! جاري تحضير التقييم...',
         'extracted_info_label': 'المعلومات المستخرجة',
 
@@ -400,9 +400,9 @@ UI_TEXT = {
         'smart_extracting': 'Analyzing your response...',
         'fields_extracted': '{count} field(s) extracted',
         'smart_fallback_notice': 'Temporarily switched to classic mode',
-        'type_your_message': 'Type your message to the doctor...',
+        'type_your_message': 'Type your message here...',
         'send_message': 'Send',
-        'smart_greeting_default': 'Welcome! I am the cardiologist. Please tell me about yourself and any complaints you may have.',
+        'smart_greeting_default': 'Welcome! I am the Huda Al-Ansari Healthcare Chatbot System. Please tell me about yourself and any concerns you may have.',
         'all_fields_collected': 'All required information collected! Preparing assessment...',
         'extracted_info_label': 'Extracted Information',
 
