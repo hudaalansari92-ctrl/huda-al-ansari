@@ -1614,10 +1614,31 @@ def render_main_area():
 
                 if submit_button:
                     if user_input and user_input.strip():
+                        # Track which field the chatbot was asking about
+                        # BEFORE the call — process_free_input mutates state
+                        # and may shift _last_asked_field to the next question.
+                        asked_before = getattr(
+                            st.session_state.chatbot, '_last_asked_field', None
+                        )
+
                         # استدعاء دالة معالجة الإدخال الحر
                         results = process_free_input(user_input, remaining_fields)
 
-                        if results['processed_count'] > 0:
+                        # Did the patient actually answer the question we
+                        # asked? If they typed something that extracted a
+                        # different field (e.g. asked about BP, replied with
+                        # their age), we still need to prompt them again
+                        # for the asked field — otherwise the rephrase
+                        # never appears for "wrong-field" answers.
+                        extracted_field_names = {
+                            it.get('field') for it in (results.get('extracted') or [])
+                        }
+                        answered_asked_field = (
+                            asked_before is None
+                            or asked_before in extracted_field_names
+                        )
+
+                        if results['processed_count'] > 0 and answered_asked_field:
                             st.success(t('great_processed', lang).format(count=results['processed_count']))
 
                             with st.expander(t('info_understood', lang), expanded=True):
@@ -1648,13 +1669,45 @@ def render_main_area():
                                         time.sleep(0.3)
                                     st.rerun()
                         else:
-                            st.warning(t('could_not_extract', lang))
+                            # Two failure shapes share this branch:
+                            #  (a) nothing was extracted at all
+                            #  (b) something was extracted but it wasn't the
+                            #      asked field — patient effectively dodged
+                            #      the question. Show what we DID capture so
+                            #      the patient feels heard, then re-ask the
+                            #      original question with example.
+                            if results['processed_count'] > 0:
+                                # Wrong-field path: surface the captured info
+                                with st.expander(t('info_understood', lang), expanded=True):
+                                    for item in results['extracted']:
+                                        field_label = (
+                                            get_field_name(item.get('field', ''), lang)
+                                            if lang == 'en'
+                                            else item.get('field_ar', item.get('field', ''))
+                                        )
+                                        st.html(f"""
+                                        <div style='background: #e8f5e9; padding: 10px; border-radius: 5px;
+                                                    margin: 5px 0; border-left: 4px solid #4caf50;'>
+                                            <strong>{field_label}:</strong> {item['value']}
+                                        </div>
+                                        """)
+                                # And tell the patient the asked one is still pending
+                                _pending_msg = (
+                                    'لكن لم تُجب على السؤال المطروح — دعني أعيد صياغته:'
+                                    if lang == 'ar'
+                                    else "But you haven't answered the question I asked — let me rephrase it:"
+                                )
+                                st.warning(_pending_msg)
+                            else:
+                                st.warning(t('could_not_extract', lang))
 
                             # 3-strikes auto-skip: register this failed attempt
                             # against the currently-asked field. If the patient
                             # has burnt all attempts, the chatbot fills the
                             # clinical default and moves on automatically.
-                            attempt = st.session_state.chatbot.register_failed_attempt()
+                            attempt = st.session_state.chatbot.register_failed_attempt(
+                                field_name=asked_before
+                            )
 
                             if attempt['auto_skipped']:
                                 st.session_state.session_data['facts'] = (
