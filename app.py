@@ -1555,10 +1555,26 @@ def render_main_area():
                             if lang == 'ar'
                             else "But you haven't answered the question I asked — let me rephrase it:"
                         )
-                        # Bundle as one doctor turn so it stays inline with chat
-                        _bundled = (f"{_dodge_line}\n\n{_counter_line}"
-                                    + (f"\n\n{_rephrase_label}\n{_next_prompt}"
-                                       if _next_prompt else ""))
+                        # Render-time tip: the doctor bubble drops raw \n
+                        # because it's plain HTML, which made the emojis
+                        # blur into one wall of text. Wrap each line in a
+                        # styled <div> so the 🩺 / ⚠️ / 👉 icons sit on
+                        # their own line and read as a structured panel.
+                        _bundled = (
+                            f'<div style="margin-bottom:8px;">{_dodge_line}</div>'
+                            f'<div style="background:#fff8e1; padding:8px 12px; '
+                            f'border-radius:8px; border-left:4px solid #ffb300; '
+                            f'margin-bottom:8px; font-weight:600;">{_counter_line}</div>'
+                        )
+                        if _next_prompt:
+                            _bundled += (
+                                f'<div style="background:#e3f2fd; padding:10px 14px; '
+                                f'border-radius:8px; border-left:4px solid #1976d2;">'
+                                f'<div style="font-weight:600; margin-bottom:4px;">'
+                                f'{_rephrase_label}</div>'
+                                f'<div>{_next_prompt}</div>'
+                                f'</div>'
+                            )
                         st.session_state.smart_chat_history.append({
                             'role': 'doctor',
                             'content': _bundled,
