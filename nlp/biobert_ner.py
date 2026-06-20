@@ -7,17 +7,85 @@ import logging
 logger = logging.getLogger('biobert_ner')
 
 
+_AR_DIACRITICS = re.compile(r'[ً-ٰٟـ]')
+
+_NORMAL_WORDS = {
+    'طبيعي', 'طبيعى', 'طبيعيه', 'طبيعية', 'طبيعيا',
+    'عادي', 'عادى', 'عاديه', 'عادية',
+    'سليم', 'سليمه', 'سليمة',
+    'منيح', 'زين', 'كويس', 'كويسه', 'تمام',
+    'normal', 'ok', 'fine', 'healthy', 'good', 'okay',
+}
+
+_NORMAL_DEFAULTS = {
+    'ChestPain':       'ASY',
+    'BloodPressure':   '120/80',
+    'Cholesterol':     180,
+    'FastingBS':       0,
+    'RestingECG':      'Normal',
+    'MaxHR':           150,
+    'ExerciseAngina':  'N',
+    'Oldpeak':         0.0,
+    'ST_Slope':        'Up',
+}
+
+
 class BioBERTNER:
     """
     BioBERT Named Entity Recognition - Unified Strategy
     استراتيجية موحدة لاستخراج جميع الحقول الـ 11
     """
-    
+
     def __init__(self):
         """تهيئة BioBERT NER مع استراتيجية موحدة"""
         self.medical_patterns = self._init_medical_patterns()
         self.medical_keywords = self._init_medical_keywords()
         logger.info("BioBERT NER initialized with unified strategy")
+
+    @staticmethod
+    def _normalize_ar(text: str) -> str:
+        """
+        تطبيع النص العربي:
+        - إزالة التشكيل (الحركات)
+        - توحيد الألف: أ إ آ ٱ → ا
+        - توحيد الياء: ى → ي
+        - توحيد التاء المربوطة: ة → ه
+        """
+        if not text:
+            return ''
+        text = _AR_DIACRITICS.sub('', text)
+        text = text.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا').replace('ٱ', 'ا')
+        text = text.replace('ى', 'ي').replace('ؤ', 'و').replace('ئ', 'ي')
+        text = text.replace('ة', 'ه')
+        return text.lower().strip()
+
+    @classmethod
+    def _is_normal_only(cls, text: str) -> bool:
+        """
+        هل النص هو فقط كلمة 'طبيعي' / 'normal' بدون أي رقم أو محتوى آخر؟
+        """
+        if not text:
+            return False
+        clean = cls._normalize_ar(text)
+        if re.search(r'\d', clean):
+            return False
+        tokens = re.findall(r'[؀-ۿa-z]+', clean)
+        if not tokens:
+            return False
+        meaningful = [t for t in tokens if t not in {'هو', 'هي', 'و', 'يكون', 'is', 'are', 'it', 'the', 'a'}]
+        if not meaningful:
+            return False
+        return all(t in _NORMAL_WORDS for t in meaningful)
+
+    @classmethod
+    def _smart_normal_default(cls, field_name: str, text: str):
+        """
+        إذا كان النص يدل على 'طبيعي' فقط، أرجع القيمة السريرية الافتراضية للحقل.
+        وإلا أرجع None لترك المنطق الأصلي يكمل عمله.
+        """
+        if cls._is_normal_only(text):
+            return _NORMAL_DEFAULTS.get(field_name)
+        return None
     
     def _init_medical_patterns(self) -> Dict:
         """
@@ -382,11 +450,16 @@ class BioBERTNER:
                 # Plain "chest pain" with no qualifier — assume typical angina
                 return 'TA'
 
+        # Step 3: Smart normal handler — "طبيعي" alone → ASY (no chest pain)
+        smart = self._smart_normal_default('ChestPain', text)
+        if smart is not None:
+            return smart
+
         return None
-    
-    # Generic "the patient just said the value is normal/healthy" helper.
-    # Returns True if `text` contains at least one feature-naming keyword
-    # AND a normal/healthy keyword close to each other in the sentence.
+
+    # Sentence-level "the patient said the value is normal/healthy" helper.
+    # Returns True if `text` contains a feature-naming keyword AND a
+    # normal/healthy keyword. Used for phrasings like "ضغطي طبيعي".
     _NORMAL_KEYWORDS = (
         'طبيعي', 'عادي', 'سليم', 'بخير', 'مظبوط', 'مضبوط',
         'normal', 'fine', 'healthy', 'ok'
@@ -412,9 +485,16 @@ class BioBERTNER:
                 diastolic = int(match.group(2))
                 if 80 <= systolic <= 200 and 40 <= diastolic <= 130:
                     return f"{systolic}/{diastolic}"
-        # Patient described the value qualitatively
+
+        # Sentence-level: "ضغطي طبيعي / normal blood pressure" → 120/80
         if self._mentions_normal(text, ['ضغط', 'bp', 'blood pressure', 'الضغط']):
             return "120/80"
+
+        # Standalone: "طبيعي" alone → 120/80
+        smart = self._smart_normal_default('BloodPressure', text)
+        if smart is not None:
+            return smart
+
         return None
     
     def _extract_cholesterol(self, text: str) -> Optional[int]:
@@ -432,9 +512,16 @@ class BioBERTNER:
                 chol = int(match.group(1))
                 if 100 <= chol <= 600:
                     return chol
-        # Patient said "كوليسترولي طبيعي" → clinical normal ≈ 180 mg/dL
+
+        # Sentence-level: "كوليسترولي طبيعي" → 180 mg/dL
         if self._mentions_normal(text, ['كوليسترول', 'cholesterol', 'chol']):
             return 180
+
+        # Standalone: "طبيعي" alone → 180 mg/dL
+        smart = self._smart_normal_default('Cholesterol', text)
+        if smart is not None:
+            return smart
+
         return None
 
     def _extract_fasting_blood_sugar(self, text: str) -> Optional[int]:
@@ -466,9 +553,14 @@ class BioBERTNER:
             # Check for "normal"
             elif any(kw in text_lower for kw in self.medical_keywords['fasting_blood_sugar']['normal']):
                 return 0
-        
+
+        # Smart normal handler — "طبيعي" alone → 0
+        smart = self._smart_normal_default('FastingBS', text)
+        if smart is not None:
+            return smart
+
         return None
-    
+
     def _extract_resting_ecg(self, text: str) -> Optional[str]:
         """
         استخراج تخطيط القلب (RestingECG)
@@ -507,9 +599,14 @@ class BioBERTNER:
             # Check for Normal
             elif any(kw in text_lower for kw in self.medical_keywords['resting_ecg']['Normal']):
                 return 'Normal'
-        
+
+        # Smart normal handler — "طبيعي" alone → Normal
+        smart = self._smart_normal_default('RestingECG', text)
+        if smart is not None:
+            return smart
+
         return None
-    
+
     def _extract_max_heart_rate(self, text: str) -> Optional[int]:
         """
         استخراج معدل نبض القلب الأقصى (MaxHR)
@@ -525,14 +622,21 @@ class BioBERTNER:
                 hr = int(match.group(1))
                 if 60 <= hr <= 220:
                     return hr
-        # Patient said "نبضي طبيعي / normal heart rate"
+
+        # Sentence-level: "نبضي طبيعي / normal heart rate" → 150 bpm
         if self._mentions_normal(
             text,
             ['نبض', 'القلب', 'heart rate', 'max hr', 'maxhr', 'ضربات', 'pulse'],
         ):
             return 150
+
+        # Standalone: "طبيعي" alone → 150 bpm
+        smart = self._smart_normal_default('MaxHR', text)
+        if smart is not None:
+            return smart
+
         return None
-    
+
     def _extract_exercise_angina(self, text: str) -> Optional[str]:
         """
         استخراج ألم مع المجهود (ExerciseAngina)
@@ -567,9 +671,14 @@ class BioBERTNER:
             # Default if only indicator found
             else:
                 return 'Y'
-        
+
+        # Smart normal handler — "طبيعي" → N (no exercise-induced angina)
+        smart = self._smart_normal_default('ExerciseAngina', text)
+        if smart is not None:
+            return smart
+
         return None
-    
+
     def _extract_oldpeak(self, text: str) -> Optional[float]:
         """
         استخراج انخفاض ST (Oldpeak)
@@ -585,9 +694,16 @@ class BioBERTNER:
                 oldpeak = float(match.group(1))
                 if 0.0 <= oldpeak <= 10.0:
                     return oldpeak
-        # Patient said "ST طبيعي / normal ST depression" → near zero
+
+        # Sentence-level: "ST طبيعي / normal ST depression" → 0.0
         if self._mentions_normal(text, ['st', 'oldpeak', 'انخفاض', 'depression']):
             return 0.0
+
+        # Standalone: "طبيعي" alone → 0.0 mm
+        smart = self._smart_normal_default('Oldpeak', text)
+        if smart is not None:
+            return smart
+
         return None
     
     def _extract_st_slope(self, text: str) -> Optional[str]:
@@ -620,7 +736,12 @@ class BioBERTNER:
             return 'Flat'
         elif any(kw in text_lower for kw in self.medical_keywords['st_slope']['Down']):
             return 'Down'
-        
+
+        # Smart normal handler — "طبيعي" → Up (healthy slope)
+        smart = self._smart_normal_default('ST_Slope', text)
+        if smart is not None:
+            return smart
+
         return None
     
     def get_entity_confidence(self, entity_name: str, entity_value: any) -> float:
