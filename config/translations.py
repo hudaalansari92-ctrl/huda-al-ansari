@@ -184,6 +184,9 @@ UI_TEXT = {
         'type_your_message': 'اكتب رسالتك هنا...',
         'send_message': 'إرسال',
         'smart_greeting_default': 'مرحباً بك! أنا نظام شات بوت للرعاية الصحية — هدى الأنصاري. أخبرني عن نفسك وعن أي شكوى تعاني منها.',
+        'ack_understand': 'أفهم، شكراً لك على المعلومة.',
+        'ack_with_field': 'أفهم، تم تسجيل {label}: {value}.',
+        'ack_next_question_prefix': 'الآن سؤالي التالي:',
         'all_fields_collected': 'تم جمع جميع المعلومات المطلوبة! جاري تحضير التقييم...',
         'extracted_info_label': 'المعلومات المستخرجة',
 
@@ -403,6 +406,9 @@ UI_TEXT = {
         'type_your_message': 'Type your message here...',
         'send_message': 'Send',
         'smart_greeting_default': 'Welcome! I am the Huda Al-Ansari Healthcare Chatbot System. Please tell me about yourself and any concerns you may have.',
+        'ack_understand': 'I understand, thank you for sharing.',
+        'ack_with_field': 'I understand — recorded {label}: {value}.',
+        'ack_next_question_prefix': 'Now my next question is:',
         'all_fields_collected': 'All required information collected! Preparing assessment...',
         'extracted_info_label': 'Extracted Information',
 

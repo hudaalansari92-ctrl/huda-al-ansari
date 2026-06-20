@@ -1460,13 +1460,32 @@ def render_main_area():
                             'content': result['doctor_response']
                         })
                     elif result.get('next_question'):
-                        # Classic fallback — show structured question
+                        # Classic fallback — show structured question with a
+                        # warm "أفهم/I understand" acknowledgment first so the
+                        # interaction still feels like a real conversation
+                        # even when Groq is offline.
                         nq = result['next_question']
                         fallback_msg = nq.get('question', nq.get('message', ''))
                         if fallback_msg:
+                            # Pick an acknowledgment: if we extracted a
+                            # specific field from this turn, mention it
+                            # ("أفهم، تم تسجيل العمر: 55."); otherwise a
+                            # generic "أفهم، شكراً لك".
+                            extracted = result.get('extracted_fields') or []
+                            if extracted:
+                                first = extracted[0]
+                                lbl = (first.get('field_ar') if lang == 'ar'
+                                       else get_field_name(first.get('field', ''), 'en'))
+                                ack = t('ack_with_field', lang).format(
+                                    label=lbl, value=first.get('value', '')
+                                )
+                            else:
+                                ack = t('ack_understand', lang)
+                            doctor_msg = (f"{ack} {t('ack_next_question_prefix', lang)} "
+                                          f"{fallback_msg}")
                             st.session_state.smart_chat_history.append({
                                 'role': 'doctor',
-                                'content': fallback_msg
+                                'content': doctor_msg
                             })
                         st.info(t('smart_fallback_notice', lang))
 
