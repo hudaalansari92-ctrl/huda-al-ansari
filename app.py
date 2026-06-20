@@ -1561,46 +1561,15 @@ def render_main_area():
                         next_q_text = nq.get('question') or nq.get('message')
                 if next_q_text:
                     border_side = 'right' if lang == 'ar' else 'left'
-
-                    # Attempt-counter badge: shows "محاولة N/3" so the
-                    # patient knows how many tries they have before the
-                    # chatbot auto-skips. N = (failed attempts so far) + 1
-                    # for the about-to-be-tried attempt, capped at MAX.
-                    last_asked = getattr(st.session_state.chatbot, '_last_asked_field', None)
-                    max_attempts = getattr(st.session_state.chatbot, 'MAX_ATTEMPTS', 3)
-                    field_attempts = getattr(st.session_state.chatbot, '_field_attempts', {}) or {}
-                    failed_so_far = field_attempts.get(last_asked, 0) if last_asked else 0
-                    current_attempt = min(failed_so_far + 1, max_attempts)
-
-                    # Colour escalates: green → amber → red as tries run out.
-                    if current_attempt == 1:
-                        badge_bg, badge_fg, badge_border = '#dcfce7', '#166534', '#16a34a'
-                    elif current_attempt == 2:
-                        badge_bg, badge_fg, badge_border = '#fef3c7', '#92400e', '#d97706'
-                    else:
-                        badge_bg, badge_fg, badge_border = '#fee2e2', '#991b1b', '#dc2626'
-
-                    attempt_label = t('attempt_badge', lang)
-                    badge_html = f"""
-                    <span style='margin-{'left' if lang == 'ar' else 'right'}: auto;
-                                 background: {badge_bg}; color: {badge_fg};
-                                 border: 1px solid {badge_border};
-                                 padding: 4px 10px; border-radius: 12px;
-                                 font-size: 12px; font-weight: 700;
-                                 white-space: nowrap;'>
-                       {attempt_label} {current_attempt}/{max_attempts}
-                    </span>"""
-
                     st.html(f"""
                     <div style='background: linear-gradient(135deg, #fffbeb, #fef3c7);
                                 padding: 12px 16px; border-radius: 10px; margin-bottom: 12px;
                                 border-{border_side}: 4px solid #f59e0b; display: flex; align-items: center; gap: 10px;'>
                         <span style='font-size: 22px; color: #f59e0b; font-weight: bold;'>?</span>
-                        <div style='flex: 1;'>
+                        <div>
                             <span style='color: #92400e; font-size: 12px; font-weight: bold;'>{t('next_question_label', lang)}</span><br>
                             <span style='color: #78350f; font-size: 15px; font-weight: 600;'>{next_q_text}</span>
                         </div>
-                        {badge_html}
                     </div>
                     """)
 
