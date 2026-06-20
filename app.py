@@ -1943,22 +1943,34 @@ def render_main_area():
                             st.markdown(f"*{_sub}*")
 
                             if _triggered:
-                                # Kill the hover shadow/highlight on the
-                                # triggered-rules dataframe so rows stay
-                                # visually calm when the cursor passes over.
+                                # Strip ALL shadows / glows from the
+                                # triggered-rules dataframe — both the
+                                # static container shadow Streamlit applies
+                                # by default and any hover/focus glow — so
+                                # the table reads as a calm, flat grid.
                                 st.html("""
                                 <style>
+                                  /* Container — kill the outer drop shadow */
+                                  div[data-testid="stDataFrame"],
+                                  div[data-testid="stDataFrame"] > div,
+                                  div[data-testid="stDataFrameResizable"],
+                                  div[data-testid="stDataFrame"] [data-testid="stDataFrameContainer"] {
+                                      box-shadow: none !important;
+                                      filter: none !important;
+                                      border-radius: 6px !important;
+                                  }
+                                  /* Inner cells / rows — no hover glow either */
+                                  div[data-testid="stDataFrame"] *,
+                                  div[data-testid="stDataFrameResizable"] * {
+                                      box-shadow: none !important;
+                                      filter: none !important;
+                                      text-shadow: none !important;
+                                  }
                                   div[data-testid="stDataFrame"] [role="row"]:hover,
                                   div[data-testid="stDataFrame"] [role="gridcell"]:hover,
                                   div[data-testid="stDataFrameResizable"] [role="row"]:hover,
                                   div[data-testid="stDataFrameResizable"] [role="gridcell"]:hover {
                                       background-color: transparent !important;
-                                      box-shadow: none !important;
-                                      filter: none !important;
-                                  }
-                                  div[data-testid="stDataFrame"] div[data-testid="stDataFrameResizable"] *:hover {
-                                      box-shadow: none !important;
-                                      filter: none !important;
                                   }
                                 </style>
                                 """)
