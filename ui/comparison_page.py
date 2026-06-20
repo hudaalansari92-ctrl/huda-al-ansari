@@ -968,7 +968,7 @@ def render_architecture_html(lang='ar'):
         prop_title = 'البنية المقترحة (V2) — متعددة الطبقات ذكية'
         prop_steps = [
             ('إدخال حر بأي لغة', '#E8F5E9', '#2E7D32'),
-            ('NER + BioBERT\nاستخراج ذكي متعدد', '#FFF3E0', '#E65100'),
+            ('BioBERT & regex\nاستخراج ذكي متعدد', '#FFF3E0', '#E65100'),
             ('التفكير الذاتي\nSelf-Dialog Manager', '#F3E5F5', '#7B1FA2'),
             ('48 قاعدة طبية\n+ 31 ميزة ثنائية', '#E8F5E9', '#2E7D32'),
             ('58 ميزة + DL Keras\nتنبؤ بالتعلم العميق', '#FCE4EC', '#C62828'),
@@ -987,7 +987,7 @@ def render_architecture_html(lang='ar'):
         prop_title = 'Proposed Architecture (V2) — Intelligent Multi-Layer'
         prop_steps = [
             ('Free Input (Any Language)', '#E8F5E9', '#2E7D32'),
-            ('NER + BioBERT\nMulti-source Extraction', '#FFF3E0', '#E65100'),
+            ('BioBERT & regex\nMulti-source Extraction', '#FFF3E0', '#E65100'),
             ('Self-Reasoning\nSelf-Dialog Manager', '#F3E5F5', '#7B1FA2'),
             ('48 Medical Rules\n+ 31 Binary Features', '#E8F5E9', '#2E7D32'),
             ('58 Features + DL Keras\nDeep Learning Prediction', '#FCE4EC', '#C62828'),
@@ -1671,7 +1671,7 @@ def render_comparison_page(lang='ar'):
                 prop_title = 'البنية المقترحة (V2)'
                 prop_steps = [
                     ('إدخال حر بأي لغة', '#E8F5E9', '#2E7D32'),
-                    ('NER + BioBERT', '#FFF3E0', '#E65100'),
+                    ('BioBERT & regex', '#FFF3E0', '#E65100'),
                     ('التفكير الذاتي', '#F3E5F5', '#7B1FA2'),
                     ('48 قاعدة طبية', '#E8F5E9', '#2E7D32'),
                     ('58 ميزة + DL Keras', '#FCE4EC', '#C62828'),
@@ -1682,7 +1682,7 @@ def render_comparison_page(lang='ar'):
                 prop_title = 'Proposed (V2)'
                 prop_steps = [
                     ('Free Input (Any Language)', '#E8F5E9', '#2E7D32'),
-                    ('NER + BioBERT', '#FFF3E0', '#E65100'),
+                    ('BioBERT & regex', '#FFF3E0', '#E65100'),
                     ('Self-Reasoning', '#F3E5F5', '#7B1FA2'),
                     ('48 Medical Rules', '#E8F5E9', '#2E7D32'),
                     ('58 Features + DL Keras', '#FCE4EC', '#C62828'),

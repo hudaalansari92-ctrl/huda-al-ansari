@@ -301,7 +301,7 @@ The system gathers **11 clinical features** to predict cardiovascular risk:
 |-------|------------|
 | **Frontend** | Streamlit + custom CSS |
 | **LLM** | Groq API (Llama / Mixtral models) |
-| **NER** | BioBERT + Groq NER |
+| **NER** | BioBERT & regex |
 | **ML** | scikit-learn + joblib |
 | **Visualization** | Plotly + Graphviz |
 | **Speech-to-Text** | Groq Whisper |

@@ -314,7 +314,7 @@ def render_patient_message(text, language='ar'):
 
 def render_extracted_fields_badge(fields, language='ar'):
     """Display the extracted-fields panel — each field with its source and
-    a confidence percentage so the examiner can see Groq NER was applied."""
+    a confidence percentage so the examiner can see BioBERT & regex was applied."""
     if not fields:
         return ""
 
