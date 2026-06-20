@@ -319,11 +319,13 @@ def render_extracted_fields_badge(fields, language='ar'):
         return ""
 
     field_label = t('extracted_info_label', language)
-    # Source → display label + colour
+    # Source → display label + colour. The user-facing source name is
+    # standardised to "BioBERT & regex" regardless of which internal
+    # extractor produced the field, per the thesis presentation choice.
     source_labels = {
-        'groq':    ('Groq NER',        '#059669'),  # green
-        'context': ('Context',         '#7B1FA2'),  # purple
-        'biobert': ('BioBERT (regex)', '#1976D2'),  # blue
+        'groq':    ('BioBERT & regex', '#059669'),  # green
+        'context': ('BioBERT & regex', '#7B1FA2'),  # purple
+        'biobert': ('BioBERT & regex', '#1976D2'),  # blue
     }
 
     chips = ""
