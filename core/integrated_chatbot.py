@@ -488,6 +488,49 @@ class IntegratedSelfReasoningChatbot:
         """Return per-field source/attempt metadata for UI badges."""
         return dict(self._field_metadata)
 
+    # --- Groq hallucination guard ----------------------------------------
+    # If Groq's LLM extracts a field whose textual keyword family is
+    # absent from the patient's input, treat it as a hallucination and
+    # drop it. Keeps Age=62 when the patient says "أبلغ 62 عاماً" but
+    # rejects the phantom FastingBS=0 the LLM tacked on.
+    _FIELD_KEYWORDS = {
+        'Age':           ('عمر', 'سنة', 'سنوات', 'عام', 'عاما', 'بلغ', 'age', 'year', 'old', 'aged'),
+        'Sex':           ('ذكر', 'انثى', 'أنثى', 'رجل', 'امرأ', 'male', 'female', 'man', 'woman', 'gender', 'sex'),
+        'ChestPain':     ('صدر', 'الم', 'ألم', 'وجع', 'ذبح', 'angina', 'chest', 'pain', 'asy', 'ta', 'ata', 'nap'),
+        'BloodPressure': ('ضغط', 'الضغط', 'pressure', 'bp', 'mmhg', 'سستول', 'دياستول', '/'),
+        'Cholesterol':   ('كوليسترول', 'كولسترول', 'cholesterol', 'chol', 'ldl', 'hdl', 'lipid', 'mg/dl'),
+        'FastingBS':     ('سكر', 'صائم', 'صايم', 'الصيام', 'fasting', 'fbs', 'glucose', 'سكري', 'diabet', 'blood sugar'),
+        'RestingECG':    ('ecg', 'ekg', 'تخطيط', 'رسم القلب', 'lvh', 'st-t', 'st wave', 'تضخم'),
+        'MaxHR':         ('نبض', 'نبضات', 'ضربات', 'pulse', 'heart rate', 'bpm', 'maxhr', 'max hr', 'hr '),
+        'ExerciseAngina':('مجهود', 'تمرين', 'exercise', 'workout', 'رياضة', 'مع المشي', 'effort'),
+        'Oldpeak':       ('oldpeak', 'st depression', 'انخفاض', 'depression', 'mm'),
+        'ST_Slope':      ('slope', 'ميل', 'صاعد', 'مسطح', 'هابط', 'منحدر'),
+    }
+
+    @classmethod
+    def _field_keyword_present(cls, field: str, text: str) -> bool:
+        """Cheap textual check: does `text` mention anything about `field`?"""
+        if not text:
+            return False
+        haystack = cls._normalize_ar(text) if hasattr(cls, '_normalize_ar') else text.lower()
+        # Re-normalise with BioBERT's helper so أ/إ/آ etc. all collapse.
+        haystack = BioBERTNER._normalize_ar(text)
+        return any(kw.lower() in haystack for kw in cls._FIELD_KEYWORDS.get(field, ()))
+
+    @classmethod
+    def _reject_groqs_phantom_fields(cls, text: str, groq_extracted: Dict) -> Dict:
+        """Return groq_extracted with hallucinated fields removed."""
+        clean = {}
+        for field, value in (groq_extracted or {}).items():
+            if cls._field_keyword_present(field, text):
+                clean[field] = value
+            else:
+                logger.warning(
+                    f"[hallucination-guard] Dropping Groq's phantom "
+                    f"{field}={value!r} — no related keyword in input: {text[:60]!r}"
+                )
+        return clean
+
     def get_rephrased_question(
         self, field_name: str, attempt_num: int = 0,
         language: Optional[str] = None
@@ -1182,6 +1225,12 @@ class IntegratedSelfReasoningChatbot:
         # === الخطوة 1: استخراج الحقول ===
         # Try Groq NER first
         groq_extracted = self.groq_ner.extract(text)
+
+        # Groq LLM occasionally hallucinates "safe defaults" for fields
+        # the patient never mentioned (e.g. typing "أبلغ 62 عاماً" can
+        # produce a phantom FastingBS=0). Drop any Groq-extracted field
+        # whose keyword family is completely absent from the input.
+        groq_extracted = self._reject_groqs_phantom_fields(text, groq_extracted)
 
         # Try BioBERT as supplement/fallback
         biobert_extracted = self.biobert_ner.extract_entities(text)
