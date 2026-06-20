@@ -909,7 +909,7 @@ def render_features_html(lang='ar'):
         rows = [
             ('استخراج الكيانات (NER)', 'Regex بسيط', 'BioBERT &amp; regex'),
             ('القواعد الطبية', '5 قواعد IF/ELSE', '48 قاعدة + 31 ميزة'),
-            ('التعلم الآلي', 'لا يوجد', 'Keras + 58 ميزة متقدمة'),
+            ('التعلم الآلي', 'لا يوجد', 'ERPM + 58 ميزة متقدمة'),
             ('نموذج لغوي كبير', 'لا يوجد', 'Groq LLaMA 3.3 70B'),
             ('التفكير الذاتي', 'لا يوجد', 'Self-Dialog Manager'),
             ('أولوية الأسئلة', 'ترتيب ثابت', 'Priority Scorer ديناميكي'),
@@ -924,7 +924,7 @@ def render_features_html(lang='ar'):
         rows = [
             ('Entity Extraction (NER)', 'Simple Regex', 'BioBERT &amp; regex'),
             ('Medical Rules', '5 IF/ELSE rules', '48 rules + 31 binary features'),
-            ('Machine Learning', 'None', 'Keras + 58 advanced features'),
+            ('Machine Learning', 'None', 'ERPM + 58 advanced features'),
             ('Large Language Model', 'None', 'Groq LLaMA 3.3 70B'),
             ('Self-Reasoning', 'None', 'Self-Dialog Manager'),
             ('Question Priority', 'Fixed order', 'Dynamic Priority Scorer'),
@@ -971,7 +971,7 @@ def render_architecture_html(lang='ar'):
             ('BioBERT & regex\nاستخراج ذكي متعدد', '#FFF3E0', '#E65100'),
             ('التفكير الذاتي\nSelf-Dialog Manager', '#F3E5F5', '#7B1FA2'),
             ('48 قاعدة طبية\n+ 31 ميزة ثنائية', '#E8F5E9', '#2E7D32'),
-            ('58 ميزة + DL Keras\nتنبؤ بالتعلم العميق', '#FCE4EC', '#C62828'),
+            ('58 ميزة + ERPM\nتنبؤ بالتعلم العميق', '#FCE4EC', '#C62828'),
             ('محرك القرار النهائي\nدمج كل المخرجات', '#E0F7FA', '#00838F'),
             ('Groq LLM\nتفسير + توصيات مخصصة', '#FFF8E1', '#F57F17'),
         ]
@@ -990,7 +990,7 @@ def render_architecture_html(lang='ar'):
             ('BioBERT & regex\nMulti-source Extraction', '#FFF3E0', '#E65100'),
             ('Self-Reasoning\nSelf-Dialog Manager', '#F3E5F5', '#7B1FA2'),
             ('48 Medical Rules\n+ 31 Binary Features', '#E8F5E9', '#2E7D32'),
-            ('58 Features + DL Keras\nDeep Learning Prediction', '#FCE4EC', '#C62828'),
+            ('58 Features + ERPM\nDeep Learning Prediction', '#FCE4EC', '#C62828'),
             ('Final Decision Engine\nEnsemble All Outputs', '#E0F7FA', '#00838F'),
             ('Groq LLM\nInterpretation + Recommendations', '#FFF8E1', '#F57F17'),
         ]
@@ -1674,7 +1674,7 @@ def render_comparison_page(lang='ar'):
                     ('BioBERT & regex', '#FFF3E0', '#E65100'),
                     ('التفكير الذاتي', '#F3E5F5', '#7B1FA2'),
                     ('48 قاعدة طبية', '#E8F5E9', '#2E7D32'),
-                    ('58 ميزة + DL Keras', '#FCE4EC', '#C62828'),
+                    ('58 ميزة + ERPM', '#FCE4EC', '#C62828'),
                     ('محرك القرار النهائي', '#E0F7FA', '#00838F'),
                     ('Groq LLM تفسير + توصيات', '#FFF8E1', '#F57F17'),
                 ]
@@ -1685,7 +1685,7 @@ def render_comparison_page(lang='ar'):
                     ('BioBERT & regex', '#FFF3E0', '#E65100'),
                     ('Self-Reasoning', '#F3E5F5', '#7B1FA2'),
                     ('48 Medical Rules', '#E8F5E9', '#2E7D32'),
-                    ('58 Features + DL Keras', '#FCE4EC', '#C62828'),
+                    ('58 Features + ERPM', '#FCE4EC', '#C62828'),
                     ('Final Decision Engine', '#E0F7FA', '#00838F'),
                     ('Groq LLM Interpret + Recommend', '#FFF8E1', '#F57F17'),
                 ]
@@ -1778,7 +1778,7 @@ def render_comparison_page(lang='ar'):
         if lang == 'ar':
             st.success("""
             **خلاصة Ablation Study:**
-            - **DL Model (Keras)** هو المكوّن الأكثر تأثيراً — إزالته تُنقص الدقة بـ **13.5%**
+            - **ERPM** هو المكوّن الأكثر تأثيراً — إزالته تُنقص الدقة بـ **13.5%**
             - **الميزات المتقدمة (58 ميزة)** تساهم بـ **11.3%** من الدقة
             - **القواعد الطبية (48 قاعدة)** تضيف **7.2%** للأداء
             - **Framingham Score** يساهم بـ **3.7%** — تحسين مستهدف
@@ -1787,7 +1787,7 @@ def render_comparison_page(lang='ar'):
         else:
             st.success("""
             **Ablation Study Conclusion:**
-            - **DL Model (Keras)** is the most impactful component — removing it drops accuracy by **13.5%**
+            - **ERPM** is the most impactful component — removing it drops accuracy by **13.5%**
             - **Advanced Features (58 features)** contribute **11.3%** to accuracy
             - **Medical Rules (48 rules)** add **7.2%** to performance
             - **Framingham Score** contributes **3.7%** — targeted improvement
