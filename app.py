@@ -1662,12 +1662,15 @@ def render_main_area():
                                                  key="continue_after_skip"):
                                         st.rerun()
                             elif attempt['field']:
-                                # Pick singular vs plural label so the
-                                # counter reads naturally in both languages.
-                                if lang == 'ar':
-                                    tries_label = 'محاولة' if attempt['remaining'] == 1 else 'محاولات'
+                                # Purpose label for this attempt:
+                                #   1 → "with example"
+                                #   2 → "last try + warning"
+                                # so the patient sees the goal of each try,
+                                # not just "N tries left".
+                                if attempt['attempts'] == 1:
+                                    purpose = t('attempt_purpose_example', lang)
                                 else:
-                                    tries_label = 'try' if attempt['remaining'] == 1 else 'tries'
+                                    purpose = t('attempt_purpose_last', lang)
 
                                 # Progressive rephrase block — show the
                                 # next, more helpful phrasing of the same
@@ -1698,8 +1701,7 @@ def render_main_area():
                                     {t('attempt_counter', lang).format(
                                         n=attempt['attempts'],
                                         max=attempt['max_attempts'],
-                                        remaining=attempt['remaining'],
-                                        tries_label=tries_label
+                                        purpose=purpose,
                                     )}
                                     {rephrase_block}
                                 </div>
