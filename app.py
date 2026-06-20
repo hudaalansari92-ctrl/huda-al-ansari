@@ -1668,6 +1668,30 @@ def render_main_area():
                                     tries_label = 'محاولة' if attempt['remaining'] == 1 else 'محاولات'
                                 else:
                                     tries_label = 'try' if attempt['remaining'] == 1 else 'tries'
+
+                                # Progressive rephrase block — show the
+                                # next, more helpful phrasing of the same
+                                # question instead of repeating the original
+                                # word-for-word.
+                                next_prompt = attempt.get('next_prompt') or ''
+                                rephrase_block = ''
+                                if next_prompt:
+                                    rephrase_label = ('🩺 إعادة صياغة السؤال:'
+                                                      if lang == 'ar'
+                                                      else "🩺 Let me rephrase the question:")
+                                    rephrase_block = f"""
+                                    <div style='margin-top: 10px; padding: 12px 14px;
+                                                background: #e3f2fd; border-radius: 10px;
+                                                border-left: 4px solid #1976d2;'>
+                                        <div style='font-weight: 600; color: #0d47a1;
+                                                    font-size: 0.82rem; margin-bottom: 4px;'>
+                                            {rephrase_label}
+                                        </div>
+                                        <div style='color: #0d47a1; font-size: 0.95rem; line-height: 1.5;'>
+                                            {next_prompt}
+                                        </div>
+                                    </div>"""
+
                                 st.html(f"""
                                 <div style='background: #fff8e1; padding: 12px; border-radius: 10px;
                                             margin-top: 10px; border-left: 4px solid #ffb300;'>
@@ -1677,6 +1701,7 @@ def render_main_area():
                                         remaining=attempt['remaining'],
                                         tries_label=tries_label
                                     )}
+                                    {rephrase_block}
                                 </div>
                                 """)
 

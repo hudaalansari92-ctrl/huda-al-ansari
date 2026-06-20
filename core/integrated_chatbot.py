@@ -30,6 +30,148 @@ from groq_api.conversation_manager import SmartConversationManager
 logger = logging.getLogger('integrated_chatbot')
 
 
+# Progressive disclosure: each field has 3 increasingly helpful phrasings.
+# L1 is the original question. L2 adds a concrete example. L3 is the
+# "last try" version with a clear template + warning that the chatbot
+# will move on next. Used by the 3-strikes auto-skip flow so the patient
+# is gradually guided to the answer rather than seeing the same prompt
+# repeated word-for-word.
+_PROGRESSIVE_PROMPTS = {
+    'Age': {
+        'ar': [
+            'ما هو عمرك؟',
+            '👉 اكتب عمرك بالأرقام، مثل: 45',
+            '🚨 آخر محاولة — رقم فقط بين 1 و 120 (مثل: 50)، وإلا سننتقل.',
+        ],
+        'en': [
+            'What is your age?',
+            '👉 Please type your age as a number, e.g., 45.',
+            '🚨 Last try — just a number between 1 and 120 (e.g., 50), otherwise we will move on.',
+        ],
+    },
+    'Sex': {
+        'ar': [
+            'ما هو جنسك؟',
+            "👉 اكتب 'ذكر' أو 'أنثى'.",
+            "🚨 آخر محاولة — M للذكر، F للأنثى، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your sex?',
+            "👉 Type 'male' or 'female'.",
+            "🚨 Last try — M for male, F for female, otherwise we will move on.",
+        ],
+    },
+    'ChestPain': {
+        'ar': [
+            'هل تعاني من ألم في الصدر؟ وما نوعه؟',
+            "👉 صف الألم: 'نموذجي' / 'غير نموذجي' / 'غير ذبحي' / 'لا أعاني' أو اكتب 'طبيعي'.",
+            "🚨 آخر محاولة — TA / ATA / NAP / ASY أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'Do you have chest pain? If yes, what type?',
+            "👉 Describe it: 'typical' / 'atypical' / 'non-anginal' / 'no pain' or just 'normal'.",
+            "🚨 Last try — TA / ATA / NAP / ASY or 'normal', otherwise we will move on.",
+        ],
+    },
+    'BloodPressure': {
+        'ar': [
+            'ما هو ضغط دمك؟',
+            "👉 اكتب ضغطك بصيغة الانقباضي/الانبساطي (مثل: 120/80)، أو اكتب 'طبيعي'.",
+            "🚨 آخر محاولة — رقمان مفصولان بـ '/' مثل 130/85، أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your blood pressure?',
+            "👉 Type it as systolic/diastolic, e.g., 120/80, or just 'normal'.",
+            "🚨 Last try — two numbers separated by '/' (e.g., 130/85), or 'normal', otherwise we will move on.",
+        ],
+    },
+    'Cholesterol': {
+        'ar': [
+            'ما هو مستوى الكوليسترول لديك؟',
+            "👉 اكتب الرقم بـ mg/dL (مثل: 200)، أو اكتب 'طبيعي'.",
+            "🚨 آخر محاولة — رقم بين 100 و 400 (مثل: 220)، أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your cholesterol level?',
+            "👉 Type the value in mg/dL (e.g., 200), or just 'normal'.",
+            "🚨 Last try — a number between 100 and 400 (e.g., 220), or 'normal', otherwise we will move on.",
+        ],
+    },
+    'FastingBS': {
+        'ar': [
+            'ما هو مستوى سكر الدم الصائم؟',
+            "👉 اكتب 'مرتفع' إذا كان > 120 mg/dL، أو 'طبيعي' إذا كان ≤ 120.",
+            "🚨 آخر محاولة — 'نعم' إذا مصاب بالسكري، 'لا' أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your fasting blood sugar?',
+            "👉 Type 'high' if > 120 mg/dL, or 'normal' if ≤ 120.",
+            "🚨 Last try — 'yes' if diabetic, 'no' or 'normal', otherwise we will move on.",
+        ],
+    },
+    'RestingECG': {
+        'ar': [
+            'ما هي نتيجة تخطيط القلب الكهربائي (ECG)؟',
+            "👉 اكتب 'طبيعي' أو 'ST' (اضطراب ST) أو 'LVH' (تضخم البطين).",
+            "🚨 آخر محاولة — Normal / ST / LVH، أو 'طبيعي' إذا لم تعلم، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your resting ECG result?',
+            "👉 Type 'normal', 'ST' (ST-T abnormality), or 'LVH' (left ventricular hypertrophy).",
+            "🚨 Last try — Normal / ST / LVH, or 'normal' if unsure, otherwise we will move on.",
+        ],
+    },
+    'MaxHR': {
+        'ar': [
+            'ما هو أقصى معدل لنبضات قلبك أثناء الجهد؟',
+            "👉 اكتب الرقم بـ bpm (مثل: 150)، أو اكتب 'طبيعي'.",
+            "🚨 آخر محاولة — رقم بين 60 و 220 (مثل: 140)، أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your maximum heart rate during exertion?',
+            "👉 Type the value in bpm (e.g., 150), or just 'normal'.",
+            "🚨 Last try — a number between 60 and 220 (e.g., 140), or 'normal', otherwise we will move on.",
+        ],
+    },
+    'ExerciseAngina': {
+        'ar': [
+            'هل تعاني من ألم في الصدر عند بذل المجهود؟',
+            "👉 اكتب 'نعم' أو 'لا' أو 'طبيعي' إذا لم يكن لديك.",
+            "🚨 آخر محاولة — Y للنعم، N للا، أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'Do you get chest pain with exercise?',
+            "👉 Type 'yes' or 'no', or 'normal' if you don't have it.",
+            "🚨 Last try — Y for yes, N for no, or 'normal', otherwise we will move on.",
+        ],
+    },
+    'Oldpeak': {
+        'ar': [
+            'ما مقدار انخفاض ST (Oldpeak) في تخطيط القلب؟',
+            "👉 اكتب الرقم بـ mm (مثل: 1.5)، أو اكتب 'طبيعي'.",
+            "🚨 آخر محاولة — رقم عشري بين 0.0 و 6.0 (مثل: 0.0)، أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is your ST depression (Oldpeak) value?',
+            "👉 Type the value in mm (e.g., 1.5), or just 'normal'.",
+            "🚨 Last try — a decimal between 0.0 and 6.0 (e.g., 0.0), or 'normal', otherwise we will move on.",
+        ],
+    },
+    'ST_Slope': {
+        'ar': [
+            'ما اتجاه ميل ST في التخطيط؟',
+            "👉 اكتب 'صاعد' أو 'مسطح' أو 'هابط' أو 'طبيعي'.",
+            "🚨 آخر محاولة — Up / Flat / Down، أو 'طبيعي'، وإلا سننتقل.",
+        ],
+        'en': [
+            'What is the slope of your ST segment?',
+            "👉 Type 'up', 'flat', or 'down', or 'normal'.",
+            "🚨 Last try — Up / Flat / Down, or 'normal', otherwise we will move on.",
+        ],
+    },
+}
+
+
 class IntegratedSelfReasoningChatbot:
     """
     الـ Chatbot الذي يتحدث مع نفسه ويحدث نفسه
@@ -292,7 +434,7 @@ class IntegratedSelfReasoningChatbot:
         if not field_name:
             return {'field': None, 'attempts': 0, 'remaining': self.MAX_ATTEMPTS,
                     'auto_skipped': False, 'skipped_value': None,
-                    'max_attempts': self.MAX_ATTEMPTS}
+                    'max_attempts': self.MAX_ATTEMPTS, 'next_prompt': None}
 
         self._field_attempts[field_name] = self._field_attempts.get(field_name, 0) + 1
         attempts = self._field_attempts[field_name]
@@ -300,6 +442,10 @@ class IntegratedSelfReasoningChatbot:
 
         if attempts < self.MAX_ATTEMPTS:
             logger.info(f"[3-strikes] {field_name}: attempt {attempts}/{self.MAX_ATTEMPTS}")
+            # Progressive rephrase: after N failures we show the (N+1)-th
+            # increasingly-helpful version of the question. Cap at the
+            # last available level so even attempt 4+ stays consistent.
+            next_prompt = self.get_rephrased_question(field_name, attempts)
             return {
                 'field': field_name,
                 'attempts': attempts,
@@ -307,6 +453,7 @@ class IntegratedSelfReasoningChatbot:
                 'auto_skipped': False,
                 'skipped_value': None,
                 'max_attempts': self.MAX_ATTEMPTS,
+                'next_prompt': next_prompt,
             }
 
         # We hit the cap → auto-skip with the clinical default.
@@ -334,11 +481,35 @@ class IntegratedSelfReasoningChatbot:
             'auto_skipped': True,
             'skipped_value': normalized,
             'max_attempts': self.MAX_ATTEMPTS,
+            'next_prompt': None,
         }
 
     def get_field_metadata(self) -> Dict[str, Dict]:
         """Return per-field source/attempt metadata for UI badges."""
         return dict(self._field_metadata)
+
+    def get_rephrased_question(
+        self, field_name: str, attempt_num: int = 0,
+        language: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Return the progressively-helpful rephrasing of `field_name`'s
+        question for the given attempt number.
+
+        attempt_num is how many times the patient has already failed:
+          0 → original phrasing (L1)
+          1 → with concrete example (L2)
+          2 → final-try phrasing with skip warning (L3)
+
+        Returns None for fields without a prepared rephrasing (e.g.,
+        fields not in _PROGRESSIVE_PROMPTS).
+        """
+        lang = language or self.language or 'ar'
+        prompts = _PROGRESSIVE_PROMPTS.get(field_name, {}).get(lang)
+        if not prompts:
+            return None
+        idx = min(max(attempt_num, 0), len(prompts) - 1)
+        return prompts[idx]
 
     def get_domain_assessment(self) -> Optional[Dict]:
         """
