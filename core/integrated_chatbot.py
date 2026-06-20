@@ -367,15 +367,26 @@ class IntegratedSelfReasoningChatbot:
             قاموس بالحقول المستخرجة
         """
         logger.info(f"Extracting fields from text using BioBERT NER")
-        
+
         # استخدام BioBERT NER لاستخراج المعلومات
         entities = self.biobert_ner.extract_entities(text)
-        
+
+        # Universal hallucination guard — same filter the smart path uses.
+        # Free-text input may produce values for fields the patient never
+        # mentioned (e.g. a stray "62" matching Age's number-only pattern
+        # while answering a different question). The exempt field is the
+        # one the chatbot just asked about, since a single-word answer
+        # like "طبيعي" is legitimate even with no field keyword.
+        entities = self._reject_phantom_fields(
+            text, entities, source='biobert',
+            exempt_field=getattr(self, '_last_asked_field', None)
+        )
+
         result = {
             'extracted': [],
             'unprocessed': []
         }
-        
+
         # معالجة المعلومات المستخرجة
         for field_name, field_value in entities.items():
             # تحويل أسماء الحقول للنظام
@@ -518,18 +529,39 @@ class IntegratedSelfReasoningChatbot:
         return any(kw.lower() in haystack for kw in cls._FIELD_KEYWORDS.get(field, ()))
 
     @classmethod
-    def _reject_groqs_phantom_fields(cls, text: str, groq_extracted: Dict) -> Dict:
-        """Return groq_extracted with hallucinated fields removed."""
+    def _reject_phantom_fields(
+        cls, text: str, extracted: Dict, source: str = 'unknown',
+        exempt_field: Optional[str] = None
+    ) -> Dict:
+        """
+        Drop any field that has no related keyword in `text`. Applied to
+        every extractor (Groq, BioBERT, context fallback) so phantom
+        values never reach self.facts no matter which layer produced them.
+
+        Args:
+            text: the patient's raw input
+            extracted: dict of field → value from one extractor
+            source: short label for logs ("groq", "biobert", "context")
+            exempt_field: a field that bypasses the check, used for the
+                field the chatbot just asked about — a one-word reply
+                like "طبيعي" is a legitimate answer to that question
+                even though no field keyword is present.
+        """
         clean = {}
-        for field, value in (groq_extracted or {}).items():
-            if cls._field_keyword_present(field, text):
+        for field, value in (extracted or {}).items():
+            if field == exempt_field or cls._field_keyword_present(field, text):
                 clean[field] = value
             else:
                 logger.warning(
-                    f"[hallucination-guard] Dropping Groq's phantom "
+                    f"[hallucination-guard:{source}] Dropping phantom "
                     f"{field}={value!r} — no related keyword in input: {text[:60]!r}"
                 )
         return clean
+
+    # Back-compat alias for the Groq-only name used in older callers.
+    @classmethod
+    def _reject_groqs_phantom_fields(cls, text: str, groq_extracted: Dict) -> Dict:
+        return cls._reject_phantom_fields(text, groq_extracted, source='groq')
 
     def get_rephrased_question(
         self, field_name: str, attempt_num: int = 0,
@@ -1226,14 +1258,28 @@ class IntegratedSelfReasoningChatbot:
         # Try Groq NER first
         groq_extracted = self.groq_ner.extract(text)
 
-        # Groq LLM occasionally hallucinates "safe defaults" for fields
-        # the patient never mentioned (e.g. typing "أبلغ 62 عاماً" can
-        # produce a phantom FastingBS=0). Drop any Groq-extracted field
-        # whose keyword family is completely absent from the input.
-        groq_extracted = self._reject_groqs_phantom_fields(text, groq_extracted)
-
         # Try BioBERT as supplement/fallback
         biobert_extracted = self.biobert_ner.extract_entities(text)
+
+        # Universal hallucination guard: every extractor (context fallback,
+        # Groq LLM, BioBERT regex) must produce fields whose keyword
+        # family actually appears in the patient's input — otherwise the
+        # value is a phantom and gets dropped. The field the chatbot
+        # just asked about (`last_asked`) is exempt, because a one-word
+        # reply like "طبيعي" is a legitimate answer to that question
+        # even with no field-name keyword in the text.
+        groq_extracted = self._reject_phantom_fields(
+            text, groq_extracted, source='groq', exempt_field=last_asked
+        )
+        biobert_extracted = self._reject_phantom_fields(
+            text, biobert_extracted, source='biobert', exempt_field=last_asked
+        )
+        # The context fallback's first-best hit IS the asked field, so it's
+        # already legitimate. Only the secondary "≤30 char safety net" can
+        # pick up an unrelated field — filter just that case.
+        context_extracted = self._reject_phantom_fields(
+            text, context_extracted, source='context', exempt_field=last_asked
+        )
 
         # Merge: context > Groq > BioBERT, then fill gaps
         merged_extracted = {}
