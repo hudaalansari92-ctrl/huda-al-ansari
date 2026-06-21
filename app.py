@@ -1186,6 +1186,47 @@ def render_sidebar():
             with st.expander(t('writing_examples', lang), expanded=False):
                 st.html(EXAMPLES_HTML.get(lang, EXAMPLES_HTML['ar']))
 
+def _demo_html_table(rows: list, headers: list, lang: str = 'ar') -> str:
+    """
+    Render a simple HTML table for the step-by-step demo.
+
+    Streamlit's st.dataframe was applying inconsistent row striping
+    (some rows ended up with a near-black background, making the text
+    unreadable). A plain HTML table sidesteps that entirely — every
+    row has the same explicit background and contrast.
+    """
+    direction = 'rtl' if lang == 'ar' else 'ltr'
+    text_align = 'right' if lang == 'ar' else 'left'
+
+    head_html = ''.join(
+        f'<th style="padding:10px 14px; text-align:{text_align}; '
+        f'background:#f3f4f6; color:#111827; font-weight:600; '
+        f'border-bottom:2px solid #d1d5db;">{h}</th>'
+        for h in headers
+    )
+
+    body_rows = []
+    for row in rows:
+        cells = ''.join(
+            f'<td style="padding:10px 14px; text-align:{text_align}; '
+            f'color:#111827; border-bottom:1px solid #e5e7eb;">{c}</td>'
+            for c in row
+        )
+        body_rows.append(f'<tr style="background:#ffffff;">{cells}</tr>')
+    body_html = ''.join(body_rows)
+
+    return (
+        f'<div style="direction:{direction};">'
+        f'<table style="width:100%; border-collapse:collapse; '
+        f'background:#ffffff; border:1px solid #e5e7eb; '
+        f'border-radius:6px; overflow:hidden; font-size:14px;">'
+        f'<thead><tr>{head_html}</tr></thead>'
+        f'<tbody>{body_html}</tbody>'
+        f'</table>'
+        f'</div>'
+    )
+
+
 def _render_step_by_step_demo(final_assessment: dict, lang: str):
     """
     Examiner-facing walkthrough — 7 stages of the diagnostic pipeline.
@@ -1242,14 +1283,21 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
                 src = 'User' if lang == 'en' else 'المريض'
             else:
                 src = '—'
-            rows.append({
-                t('demo_s1_table_field', lang): field_names.get(fname, fname),
-                t('demo_s1_table_value', lang): str(val),
-                t('demo_s1_table_source', lang): src,
-            })
+            rows.append([
+                field_names.get(fname, fname),
+                str(val),
+                src,
+            ])
         if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True,
-                         hide_index=True)
+            st.html(_demo_html_table(
+                rows,
+                headers=[
+                    t('demo_s1_table_field', lang),
+                    t('demo_s1_table_value', lang),
+                    t('demo_s1_table_source', lang),
+                ],
+                lang=lang,
+            ))
         else:
             st.warning('No facts collected yet.' if lang == 'en'
                        else 'لم يتم جمع أي حقائق بعد.')
@@ -1282,13 +1330,16 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
         if triggered:
             rows = []
             for r in triggered[:10]:
-                rows.append({
-                    'Rule ID': r.get('rule_id', '—'),
-                    'Condition': r.get('condition', ''),
-                    'Confidence': f"{float(r.get('confidence', 0)) * 100:.0f}%",
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True,
-                         hide_index=True)
+                rows.append([
+                    r.get('rule_id', '—'),
+                    r.get('condition', ''),
+                    f"{float(r.get('confidence', 0)) * 100:.0f}%",
+                ])
+            st.html(_demo_html_table(
+                rows,
+                headers=['Rule ID', 'Condition', 'Confidence'],
+                lang=lang,
+            ))
 
     elif cur == 4:
         st.markdown(f"### {t('demo_s4_title', lang)}")
