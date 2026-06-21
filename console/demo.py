@@ -9,12 +9,49 @@ Flow:
     4. Pull the final assessment and replay the 7-stage walkthrough
 """
 import argparse
+import logging
 import os
 import sys
 
 # Make the parent project importable when run as ``python -m console`` from
 # the project root.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _silence_engine_logs() -> None:
+    """Mute the noisy engine/NLP loggers so the demo output stays clean.
+
+    Without this the user sees lines like
+        "Groq not available for Smart NER"
+        "[hallucination-guard:biobert] Dropping phantom …"
+    interleaved with the carefully formatted prompts, which is fine in
+    the Streamlit log panel but ugly in a terminal walkthrough.
+    """
+    # Anything coming through the root handler — flatten to ERROR.
+    logging.basicConfig(level=logging.ERROR, format='%(message)s')
+    # Specific loggers our pipeline registers — pin them to ERROR too in
+    # case the root config above doesn't catch them.
+    for name in (
+        'integrated_chatbot',
+        'biobert_ner',
+        'groq_api.groq_ner',
+        'groq_api.conversation_manager',
+        'groq_api.result_interpreter',
+        'groq_api.recommendation_engine',
+        'engine.advanced_features',
+        'engine.ml_predictor',
+        'engine.domain_rules_engine',
+        'engine.final_decision_engine',
+        'core.self_dialog_manager',
+        'core.priority_scorer',
+        'core.dynamic_question_selector',
+    ):
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+
+# Silence loggers BEFORE importing the chatbot — some import-time logs
+# would otherwise leak through.
+_silence_engine_logs()
 
 from core.integrated_chatbot import IntegratedSelfReasoningChatbot
 from .colors import header, cyan, bold, green, yellow
