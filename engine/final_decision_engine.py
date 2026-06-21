@@ -6,6 +6,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _norm_domain_risk(domain: Dict) -> str:
+    """
+    Read the domain engine's risk level safely and normalise it for
+    comparison against the rule lambdas' uppercase string literals.
+
+    The Domain Rules Engine stores its verdict inside
+    ``domain_assessment['insights']['risk_level']`` and emits it
+    capitalised like ``"High"`` / ``"Medium"`` / ``"Low"``. The fusion
+    lambdas in this file compare against ``"HIGH"`` / ``"MEDIUM"`` /
+    etc., so a raw ``domain.get('risk_level')`` returned ``None`` (the
+    key is not at the top level) and every "Domain HIGH" rule silently
+    failed — patients who should land in HIGH were dropping into the
+    catch-all default MODERATE rule.
+
+    This helper:
+      1. Looks in ``insights.risk_level`` first.
+      2. Falls back to a top-level ``risk_level`` for any old callers.
+      3. Upper-cases the result so ``"High"`` matches ``"HIGH"``.
+      4. Returns ``"UNKNOWN"`` when nothing is present.
+    """
+    value = (
+        (domain or {}).get('insights', {}).get('risk_level')
+        or (domain or {}).get('risk_level')
+        or 'UNKNOWN'
+    )
+    return str(value).upper()
+
+
 class FinalDecisionEngine:
     """
     محرك القرار النهائي
@@ -34,15 +62,15 @@ class FinalDecisionEngine:
             # Rule 1: CRITICAL - ML very high + Domain high
             {
                 'condition': lambda domain, ml: (
-                    ml['probability'] >= 0.9 and 
-                    domain.get('risk_level') in ['HIGH', 'CRITICAL']
+                    ml['probability'] >= 0.9 and
+                    _norm_domain_risk(domain) in ('HIGH', 'CRITICAL')
                 ),
                 'decision': 'CRITICAL',
                 'confidence': 0.95,
                 'reasoning_en': 'Both ML model and domain rules indicate critical risk',
                 'reasoning_ar': 'كل من الموديل والقواعد الطبية تشير لخطر حرج'
             },
-            
+
             # Rule 2: CRITICAL - ML critical regardless of domain
             {
                 'condition': lambda domain, ml: ml['probability'] >= 0.95,
@@ -51,23 +79,23 @@ class FinalDecisionEngine:
                 'reasoning_en': 'ML model shows critical probability (≥95%)',
                 'reasoning_ar': 'الموديل يشير لاحتمالية حرجة (≥95%)'
             },
-            
+
             # Rule 3: HIGH - ML high + Domain high
             {
                 'condition': lambda domain, ml: (
-                    ml['probability'] >= 0.7 and 
-                    domain.get('risk_level') in ['HIGH', 'CRITICAL']
+                    ml['probability'] >= 0.7 and
+                    _norm_domain_risk(domain) in ('HIGH', 'CRITICAL')
                 ),
                 'decision': 'HIGH',
                 'confidence': 0.85,
                 'reasoning_en': 'Both ML and domain analysis show high risk',
                 'reasoning_ar': 'كل من الموديل والتحليل الطبي يشيران لخطر عالي'
             },
-            
+
             # Rule 4: HIGH - ML high + Framingham high
             {
                 'condition': lambda domain, ml, features: (
-                    ml['probability'] >= 0.7 and 
+                    ml['probability'] >= 0.7 and
                     features.get('framingham_risk_score', 0) >= 4
                 ),
                 'decision': 'HIGH',
@@ -75,69 +103,74 @@ class FinalDecisionEngine:
                 'reasoning_en': 'High ML probability with elevated Framingham score',
                 'reasoning_ar': 'احتمالية عالية من الموديل مع نقاط فرامنغهام مرتفعة'
             },
-            
-            # Rule 5: HIGH - Domain critical regardless of ML
+
+            # Rule 5: HIGH - Domain critical/high regardless of ML
+            # Now also catches Domain=HIGH (not just CRITICAL) so a strong
+            # rule-based verdict is honoured even when the ML model is
+            # unavailable / falls back to a low probability.
             {
-                'condition': lambda domain, ml: domain.get('risk_level') == 'CRITICAL',
+                'condition': lambda domain, ml: (
+                    _norm_domain_risk(domain) in ('HIGH', 'CRITICAL')
+                ),
                 'decision': 'HIGH',
                 'confidence': 0.75,
-                'reasoning_en': 'Domain rules indicate critical risk patterns',
-                'reasoning_ar': 'القواعد الطبية تشير لأنماط خطر حرجة'
+                'reasoning_en': 'Domain rules indicate high/critical risk patterns',
+                'reasoning_ar': 'القواعد الطبية تشير لأنماط خطر عالي/حرج'
             },
-            
+
             # Rule 6: MODERATE-HIGH - ML moderate + Domain high
             {
                 'condition': lambda domain, ml: (
-                    0.5 <= ml['probability'] < 0.7 and 
-                    domain.get('risk_level') in ['HIGH', 'CRITICAL']
+                    0.5 <= ml['probability'] < 0.7 and
+                    _norm_domain_risk(domain) in ('HIGH', 'CRITICAL')
                 ),
                 'decision': 'MODERATE-HIGH',
                 'confidence': 0.70,
                 'reasoning_en': 'Moderate ML risk but high domain risk',
                 'reasoning_ar': 'خطر متوسط من الموديل لكن عالي من القواعد'
             },
-            
+
             # Rule 7: MODERATE-HIGH - ML high + Domain moderate
             {
                 'condition': lambda domain, ml: (
-                    ml['probability'] >= 0.7 and 
-                    domain.get('risk_level') == 'MEDIUM'
+                    ml['probability'] >= 0.7 and
+                    _norm_domain_risk(domain) in ('MEDIUM', 'MODERATE')
                 ),
                 'decision': 'MODERATE-HIGH',
                 'confidence': 0.70,
                 'reasoning_en': 'High ML probability despite moderate domain risk',
                 'reasoning_ar': 'احتمالية عالية من الموديل رغم خطر متوسط من القواعد'
             },
-            
+
             # Rule 8: MODERATE - Both moderate
             {
                 'condition': lambda domain, ml: (
-                    0.4 <= ml['probability'] < 0.7 and 
-                    domain.get('risk_level') in ['MEDIUM', 'MODERATE']
+                    0.4 <= ml['probability'] < 0.7 and
+                    _norm_domain_risk(domain) in ('MEDIUM', 'MODERATE')
                 ),
                 'decision': 'MODERATE',
                 'confidence': 0.65,
                 'reasoning_en': 'Both sources indicate moderate risk',
                 'reasoning_ar': 'كلا المصدرين يشيران لخطر متوسط'
             },
-            
+
             # Rule 9: LOW-MODERATE - ML low + Domain moderate
             {
                 'condition': lambda domain, ml: (
-                    ml['probability'] < 0.4 and 
-                    domain.get('risk_level') in ['MEDIUM', 'HIGH']
+                    ml['probability'] < 0.4 and
+                    _norm_domain_risk(domain) in ('MEDIUM', 'MODERATE')
                 ),
                 'decision': 'LOW-MODERATE',
                 'confidence': 0.60,
                 'reasoning_en': 'Domain shows concern but ML probability is low',
                 'reasoning_ar': 'القواعد تُظهر قلقاً لكن احتمالية الموديل منخفضة'
             },
-            
+
             # Rule 10: LOW - Both low
             {
                 'condition': lambda domain, ml: (
-                    ml['probability'] < 0.3 and 
-                    domain.get('risk_level') in ['LOW', 'UNKNOWN']
+                    ml['probability'] < 0.3 and
+                    _norm_domain_risk(domain) in ('LOW', 'UNKNOWN')
                 ),
                 'decision': 'LOW',
                 'confidence': 0.80,

@@ -1196,11 +1196,11 @@ DECISION_TREE_RULES_INFO = [
     ('ML ≥ 95٪ (أيّ نتيجة قواعد)',         'ML ≥ 95% (any domain)',              'CRITICAL'),
     ('ML ≥ 70٪ AND القواعد HIGH/CRITICAL', 'ML ≥ 70% AND Domain HIGH/CRITICAL', 'HIGH'),
     ('ML ≥ 70٪ AND Framingham ≥ 4',        'ML ≥ 70% AND Framingham ≥ 4',        'HIGH'),
-    ('القواعد = CRITICAL (أيّ ML)',         'Domain = CRITICAL (any ML)',          'HIGH'),
+    ('القواعد HIGH/CRITICAL (أيّ ML)',      'Domain HIGH/CRITICAL (any ML)',       'HIGH'),
     ('50٪ ≤ ML < 70٪ AND القواعد HIGH',    '50% ≤ ML < 70% AND Domain HIGH',     'MODERATE-HIGH'),
     ('ML ≥ 70٪ AND القواعد MEDIUM',         'ML ≥ 70% AND Domain MEDIUM',         'MODERATE-HIGH'),
     ('40٪ ≤ ML < 70٪ AND القواعد MEDIUM',  '40% ≤ ML < 70% AND Domain MEDIUM',   'MODERATE'),
-    ('ML < 40٪ AND القواعد MEDIUM/HIGH',   'ML < 40% AND Domain MEDIUM/HIGH',    'LOW-MODERATE'),
+    ('ML < 40٪ AND القواعد MEDIUM',        'ML < 40% AND Domain MEDIUM',         'LOW-MODERATE'),
     ('ML < 30٪ AND القواعد LOW',           'ML < 30% AND Domain LOW',            'LOW'),
     ('افتراضي (لا تنطبق أيّ قاعدة أعلاه)',  'Default (no rule above matched)',    'MODERATE'),
 ]
