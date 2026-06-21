@@ -1186,7 +1186,28 @@ def render_sidebar():
             with st.expander(t('writing_examples', lang), expanded=False):
                 st.html(EXAMPLES_HTML.get(lang, EXAMPLES_HTML['ar']))
 
-def _demo_html_table(rows: list, headers: list, lang: str = 'ar') -> str:
+# Human-readable shorthand for each of the 10 decision-tree rules in
+# engine/final_decision_engine.py. Order MUST match _initialize_decision_tree().
+# Used by Stage 5 of the step-by-step demo so the committee sees what each
+# rule fires on without staring at lambdas.
+DECISION_TREE_RULES_INFO = [
+    # (condition_ar, condition_en, output)
+    ('ML ≥ 90٪ AND القواعد HIGH/CRITICAL', 'ML ≥ 90% AND Domain HIGH/CRITICAL', 'CRITICAL'),
+    ('ML ≥ 95٪ (أيّ نتيجة قواعد)',         'ML ≥ 95% (any domain)',              'CRITICAL'),
+    ('ML ≥ 70٪ AND القواعد HIGH/CRITICAL', 'ML ≥ 70% AND Domain HIGH/CRITICAL', 'HIGH'),
+    ('ML ≥ 70٪ AND Framingham ≥ 4',        'ML ≥ 70% AND Framingham ≥ 4',        'HIGH'),
+    ('القواعد = CRITICAL (أيّ ML)',         'Domain = CRITICAL (any ML)',          'HIGH'),
+    ('50٪ ≤ ML < 70٪ AND القواعد HIGH',    '50% ≤ ML < 70% AND Domain HIGH',     'MODERATE-HIGH'),
+    ('ML ≥ 70٪ AND القواعد MEDIUM',         'ML ≥ 70% AND Domain MEDIUM',         'MODERATE-HIGH'),
+    ('40٪ ≤ ML < 70٪ AND القواعد MEDIUM',  '40% ≤ ML < 70% AND Domain MEDIUM',   'MODERATE'),
+    ('ML < 40٪ AND القواعد MEDIUM/HIGH',   'ML < 40% AND Domain MEDIUM/HIGH',    'LOW-MODERATE'),
+    ('ML < 30٪ AND القواعد LOW',           'ML < 30% AND Domain LOW',            'LOW'),
+    ('افتراضي (لا تنطبق أيّ قاعدة أعلاه)',  'Default (no rule above matched)',    'MODERATE'),
+]
+
+
+def _demo_html_table(rows: list, headers: list, lang: str = 'ar',
+                     highlight_row: int = None) -> str:
     """
     Render a simple HTML table for the step-by-step demo.
 
@@ -1194,6 +1215,14 @@ def _demo_html_table(rows: list, headers: list, lang: str = 'ar') -> str:
     (some rows ended up with a near-black background, making the text
     unreadable). A plain HTML table sidesteps that entirely — every
     row has the same explicit background and contrast.
+
+    Args:
+        rows: list of row tuples/lists (cells already formatted)
+        headers: column headers
+        lang: 'ar' or 'en' — sets the table direction
+        highlight_row: zero-based row index to render with a yellow
+            "applied" background (used by Stage 5 to mark which rule
+            of the 10-rule fusion table fired)
     """
     direction = 'rtl' if lang == 'ar' else 'ltr'
     text_align = 'right' if lang == 'ar' else 'left'
@@ -1206,13 +1235,22 @@ def _demo_html_table(rows: list, headers: list, lang: str = 'ar') -> str:
     )
 
     body_rows = []
-    for row in rows:
+    for i, row in enumerate(rows):
+        is_hit = (highlight_row is not None and i == highlight_row)
+        row_bg   = '#fffbeb' if is_hit else '#ffffff'   # soft amber when highlighted
+        row_fg   = '#111827'
+        row_wt   = '600' if is_hit else 'normal'
         cells = ''.join(
             f'<td style="padding:10px 14px; text-align:{text_align}; '
-            f'color:#111827; border-bottom:1px solid #e5e7eb;">{c}</td>'
+            f'color:{row_fg}; font-weight:{row_wt}; '
+            f'border-bottom:1px solid #e5e7eb;">{c}</td>'
             for c in row
         )
-        body_rows.append(f'<tr style="background:#ffffff;">{cells}</tr>')
+        border_left = ('border-left:4px solid #f59e0b;'
+                       if is_hit and direction == 'ltr'
+                       else 'border-right:4px solid #f59e0b;' if is_hit
+                       else '')
+        body_rows.append(f'<tr style="background:{row_bg}; {border_left}">{cells}</tr>')
     body_html = ''.join(body_rows)
 
     return (
@@ -1424,15 +1462,44 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
             lang=lang,
         ))
 
-        # ── Full decision tree visual (with patient's path highlighted) ──
+        # ── Full 10-rule fusion table (with the applied rule highlighted) ──
         st.markdown(f"**{t('demo_s5_tree_label', lang)}**")
+        # Match the reasoning text returned by the engine against our static
+        # rule list so we know which row to highlight. The lambdas in
+        # engine/final_decision_engine.py share the same order as
+        # DECISION_TREE_RULES_INFO, so we can match by reasoning text.
+        fired_reasoning_en = (final_d.get('metadata', {}) or {}).get(
+            'decision_rule') or final_d.get('reasoning_en', '')
+        # Walk the engine's rule list and find the matching index.
         try:
-            from ui.decision_tree_viz import create_decision_tree_diagram
-            fig_tree = create_decision_tree_diagram(final_d)
-            st.plotly_chart(fig_tree, use_container_width=True,
-                            key='demo_s5_decision_tree')
-        except Exception as _e:
-            st.warning(f"Decision tree could not render: {_e}")
+            from engine.final_decision_engine import final_decision_engine
+            engine_rules = final_decision_engine.decision_tree_rules
+            applied_idx = next(
+                (i for i, r in enumerate(engine_rules)
+                 if r.get('reasoning_en') == fired_reasoning_en),
+                None,
+            )
+        except Exception:
+            applied_idx = None
+
+        table_rows = []
+        for i, (cond_ar, cond_en, output) in enumerate(DECISION_TREE_RULES_INFO):
+            cond = cond_ar if lang == 'ar' else cond_en
+            status = (t('demo_s5_applied', lang) if i == applied_idx
+                      else t('demo_s5_not_applied', lang))
+            table_rows.append([str(i + 1), cond, output, status])
+
+        st.html(_demo_html_table(
+            rows=table_rows,
+            headers=[
+                t('demo_s5_table_num', lang),
+                t('demo_s5_table_condition', lang),
+                t('demo_s5_table_output', lang),
+                t('demo_s5_table_status', lang),
+            ],
+            lang=lang,
+            highlight_row=applied_idx,
+        ))
 
     elif cur == 6:
         st.markdown(f"### {t('demo_s6_title', lang)}")

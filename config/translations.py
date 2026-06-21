@@ -181,7 +181,13 @@ UI_TEXT = {
         'demo_s5_how_intro': 'يستخدم النظام شجرة قرار من 10 قواعد ذات أولوية تفحص نتيجة القواعد الطبية ونتيجة الشبكة العصبية معاً — وأوّل قاعدة تنطبق هي التي تُحدّد القرار النهائي.',
         'demo_s5_rule_fired': 'القاعدة المُطبَّقة على هذه الحالة:',
         'demo_s5_confidence_label': 'ثقة القرار',
-        'demo_s5_tree_label': 'شجرة القرار الكاملة (المسار المُطبَّق مظلَّل):',
+        'demo_s5_tree_label': 'جدول القواعد الـ 10 (القاعدة المُطبَّقة مُمَيَّزة):',
+        'demo_s5_table_num': '#',
+        'demo_s5_table_condition': 'الشرط',
+        'demo_s5_table_output': 'المخرج',
+        'demo_s5_table_status': 'الحالة',
+        'demo_s5_applied': 'تطبّقت',
+        'demo_s5_not_applied': '—',
 
         # Step 6 — Risk Stratification
         'demo_s6_title': 'المرحلة 6: تصنيف مستوى الخطر',
@@ -464,7 +470,13 @@ UI_TEXT = {
         'demo_s5_how_intro': 'The system uses a priority-ordered decision tree of 10 rules that look at the medical rules verdict and the neural network verdict together — the first rule that matches sets the final decision.',
         'demo_s5_rule_fired': 'Rule applied to this case:',
         'demo_s5_confidence_label': 'Decision confidence',
-        'demo_s5_tree_label': 'Full decision tree (the path applied is highlighted):',
+        'demo_s5_tree_label': 'The 10 fusion rules (the applied rule is highlighted):',
+        'demo_s5_table_num': '#',
+        'demo_s5_table_condition': 'Condition',
+        'demo_s5_table_output': 'Output',
+        'demo_s5_table_status': 'Status',
+        'demo_s5_applied': 'Applied',
+        'demo_s5_not_applied': '—',
 
         # Step 6 — Risk Stratification
         'demo_s6_title': 'Stage 6: Risk Stratification',
