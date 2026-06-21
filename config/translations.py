@@ -596,8 +596,15 @@ EXAMPLES_HTML = {
         <div class="ex-card"><h4>انخفاض ST</h4><div class="ex-row"><span class="ex-chip">انخفاض ST: 1.5</span><span class="ex-chip">أولدبيك 2.0</span><span class="ex-chip en">Oldpeak: 2.5</span><span class="ex-chip en">ST depression: 3.0</span></div></div>
         <div class="ex-card"><h4>ميل ST</h4><div class="ex-row"><span class="ex-chip">صاعد</span><span class="ex-chip">مسطح</span><span class="ex-chip">منحدر</span><span class="ex-chip en">Up</span><span class="ex-chip en">Flat</span><span class="ex-chip en">Down</span></div></div>
     </div>
-    <div class="ex-full"><h4>أمثلة جمل كاملة</h4><code>عمري 55 سنة، ذكر، ألم في الصدر،\nضغط الدم 140/90، الكوليسترول 250،\nسكر صائم مرتفع، معدل القلب 160</code></div>
-    <div class="ex-full" style="margin-top:6px; border-right-color:#2563eb;"><h4 style="color:#2563eb;">English Example</h4><code>Age 62, male, chest pain typical,\nBP 145/92, cholesterol 280,\nfasting BS high, max HR 150</code></div>
+    <div class="ex-full"><h4>أمثلة جمل كاملة (11 حقل)</h4><code>عمري 55 سنة، ذكر، ألم في الصدر،\nضغط الدم 140/90، الكوليسترول 250،\nسكر صائم مرتفع، معدل القلب 160</code></div>
+
+    <div class="ex-full" style="margin-top:8px; border-right-color:#16a34a;"><h4 style="color:#16a34a;">🟢 مثال شامل — مريض منخفض الخطر (الـ 11 حقل)</h4><code>عمري 35 سنة، أنثى، لا أعاني من ألم بالصدر،\nضغط الدم 115/75، الكوليسترول 180،\nسكر صائم طبيعي، تخطيط القلب طبيعي،\nأقصى نبض 175، لا يوجد ألم مع المجهود،\nانخفاض ST: 0.0، ميل ST صاعد.</code></div>
+
+    <div class="ex-full" style="margin-top:8px; border-right-color:#f59e0b;"><h4 style="color:#f59e0b;">🟡 مثال شامل — مريض متوسط الخطر (الـ 11 حقل)</h4><code>عمري 52 سنة، ذكر، ألم صدر غير نموذجي،\nضغط الدم 138/88، الكوليسترول 235،\nسكر صائم مرتفع، تخطيط القلب يُظهر اضطراب ST،\nأقصى نبض 155، أعاني من ألم مع المجهود،\nانخفاض ST: 1.5، ميل ST مسطح.</code></div>
+
+    <div class="ex-full" style="margin-top:8px; border-right-color:#dc2626;"><h4 style="color:#dc2626;">🔴 مثال شامل — مريض عالي الخطر (الـ 11 حقل)</h4><code>عمري 67 سنة، ذكر، ألم صدر نموذجي،\nضغط الدم 165/100، الكوليسترول 290،\nسكر صائم مرتفع، تخطيط القلب يُظهر تضخم البطين (LVH)،\nأقصى نبض 130، ألم مع المجهود نعم،\nانخفاض ST: 2.5، ميل ST هابط.</code></div>
+
+    <div class="ex-full" style="margin-top:6px; border-right-color:#2563eb;"><h4 style="color:#2563eb;">English Example (short)</h4><code>Age 62, male, chest pain typical,\nBP 145/92, cholesterol 280,\nfasting BS high, max HR 150</code></div>
     """,
 
     'en': """
@@ -633,7 +640,14 @@ EXAMPLES_HTML = {
         <div class="ex-card"><h4>ST Depression (Oldpeak)</h4><div class="ex-row"><span class="ex-chip">Oldpeak: 2.5</span><span class="ex-chip">ST depression: 1.5</span></div></div>
         <div class="ex-card"><h4>ST Slope</h4><div class="ex-row"><span class="ex-chip">Up</span><span class="ex-chip">Flat</span><span class="ex-chip">Down</span></div></div>
     </div>
-    <div class="ex-full"><h4>Full Sentence Example</h4><code>Age 62, male, chest pain typical,\nBP 145/92, cholesterol 280,\nfasting BS high, max HR 150</code></div>
+    <div class="ex-full"><h4>Full Sentence Example (short)</h4><code>Age 62, male, chest pain typical,\nBP 145/92, cholesterol 280,\nfasting BS high, max HR 150</code></div>
+
+    <div class="ex-full" style="margin-top:8px; border-left-color:#16a34a;"><h4 style="color:#16a34a;">🟢 Comprehensive — Low-risk patient (all 11 fields)</h4><code>I am 35 years old, female, no chest pain at all,\nblood pressure 115/75, cholesterol 180,\nfasting blood sugar normal, resting ECG normal,\nmax heart rate 175, no exercise angina,\nST depression: 0.0, ST slope up.</code></div>
+
+    <div class="ex-full" style="margin-top:8px; border-left-color:#f59e0b;"><h4 style="color:#f59e0b;">🟡 Comprehensive — Moderate-risk patient (all 11 fields)</h4><code>I am 52 years old, male, atypical chest pain,\nblood pressure 138/88, cholesterol 235,\nfasting blood sugar high, resting ECG shows ST-T abnormality,\nmax heart rate 155, exercise angina yes,\nST depression: 1.5, ST slope flat.</code></div>
+
+    <div class="ex-full" style="margin-top:8px; border-left-color:#dc2626;"><h4 style="color:#dc2626;">🔴 Comprehensive — High-risk patient (all 11 fields)</h4><code>I am 67 years old, male, typical chest pain,\nblood pressure 165/100, cholesterol 290,\nfasting blood sugar high, resting ECG shows LVH (left ventricular hypertrophy),\nmax heart rate 130, severe exercise angina,\nST depression: 2.5, ST slope down.</code></div>
+
     <div class="ex-full" style="margin-top:6px; border-left-color:#7c3aed;"><h4 style="color:#7c3aed;">مثال عربي</h4><code>عمري 55 سنة، ذكر، ألم في الصدر،\nضغط الدم 140/90، الكوليسترول 250،\nسكر صائم مرتفع، معدل القلب 160</code></div>
     """,
 }
