@@ -134,57 +134,57 @@ UI_TEXT = {
         'show_legacy': 'عرض التقرير النهائي (Legacy)',
 
         # Step-by-step demo tabs (after 11 fields collected)
-        'tab_old_way': '📊 الطريقة القديمة',
-        'tab_step_by_step': '🎬 خطوة خطوة',
-        'demo_start_button': '🎬 ابدأ العرض التفاعلي',
+        'tab_old_way': 'الطريقة القديمة',
+        'tab_step_by_step': 'خطوة خطوة',
+        'demo_start_button': 'ابدأ العرض التفاعلي',
         'demo_start_intro': 'سنعرض رحلة التشخيص في 7 مراحل — كل مرحلة تشرح ما يحدث بلغة مبسّطة. اضغطي "ابدأ" متى تكونين جاهزة.',
         'demo_progress': 'المرحلة {n} من {total}',
-        'demo_prev': '⬅️ السابق',
-        'demo_next': 'التالي ➡️',
-        'demo_restart': '🔄 إعادة من البداية',
-        'demo_finish': '✅ انتهى العرض — تم!',
-        'demo_what_happens': '💡 ماذا يحدث الآن؟',
+        'demo_prev': 'السابق',
+        'demo_next': 'التالي',
+        'demo_restart': 'إعادة من البداية',
+        'demo_finish': 'انتهى العرض — تم!',
+        'demo_what_happens': 'ماذا يحدث الآن؟',
 
         # Step 1 — Raw input
-        'demo_s1_title': '🗂️ المرحلة 1: البيانات الخام للمريض',
+        'demo_s1_title': 'المرحلة 1: البيانات الخام للمريض',
         'demo_s1_explain': 'هذه هي الـ 11 معلومة التي جمعناها من المريض. النظام سيستخدمها أساساً لكل القرارات التالية.',
         'demo_s1_table_field': 'الحقل',
         'demo_s1_table_value': 'القيمة',
         'demo_s1_table_source': 'المصدر',
 
         # Step 2 — Feature Engineering
-        'demo_s2_title': '🧪 المرحلة 2: هندسة الخصائص',
+        'demo_s2_title': 'المرحلة 2: هندسة الخصائص',
         'demo_s2_explain': 'حوّلنا 11 معلومة بسيطة إلى 58 مؤشّر طبي متقدّم — مثل: تصنيف الضغط (Stage 1/2)، مخاطر العمر، تفاعلات بين الكوليسترول والسكري...',
         'demo_s2_count_label': 'إجمالي المؤشّرات المُولّدة',
         'demo_s2_examples_label': 'أمثلة على المؤشّرات المتقدّمة:',
 
         # Step 3 — Domain Rules
-        'demo_s3_title': '📚 المرحلة 3: القواعد الطبية',
+        'demo_s3_title': 'المرحلة 3: القواعد الطبية',
         'demo_s3_explain': 'النظام يحتوي على 48 قاعدة طبية معتمدة من جمعية القلب الأمريكية (ACC/AHA). فحصناها كلها — وهذه القواعد التي تنطبق على المريض:',
         'demo_s3_triggered_label': 'القواعد المُفعّلة',
         'demo_s3_total_label': 'إجمالي القواعد المتاحة',
 
         # Step 4 — ERPM
-        'demo_s4_title': '🤖 المرحلة 4: الشبكة العصبية ERPM',
+        'demo_s4_title': 'المرحلة 4: الشبكة العصبية ERPM',
         'demo_s4_explain': 'استخدمنا نموذج تعلّم آلي بـ 79,809 معامل تم تدريبه على آلاف الحالات الحقيقية. أعطى احتمالية إصابة المريض كرقم بين 0% و 100%.',
         'demo_s4_prediction_label': 'تنبؤ النموذج',
         'demo_s4_probability_label': 'احتمالية الإصابة',
         'demo_s4_params_note': 'النموذج: ERPM • 79,809 معامل • 21 طبقة',
 
         # Step 5 — Decision Fusion
-        'demo_s5_title': '⚖️ المرحلة 5: دمج القرارات',
+        'demo_s5_title': 'المرحلة 5: دمج القرارات',
         'demo_s5_explain': 'لا نعتمد على مصدر واحد — جمعنا حكمة الأطباء (القواعد الطبية) مع قوة الحاسوب (الشبكة العصبية) للحصول على قرار متوازن وأكثر دقّة.',
-        'demo_s5_domain_label': '🧠 رأي القواعد الطبية',
-        'demo_s5_ml_label': '🤖 رأي الشبكة العصبية',
-        'demo_s5_fusion_label': '⚖️ القرار المُدمج',
+        'demo_s5_domain_label': 'رأي القواعد الطبية',
+        'demo_s5_ml_label': 'رأي الشبكة العصبية',
+        'demo_s5_fusion_label': 'القرار المُدمج',
 
         # Step 6 — Risk Stratification
-        'demo_s6_title': '📊 المرحلة 6: تصنيف مستوى الخطر',
+        'demo_s6_title': 'المرحلة 6: تصنيف مستوى الخطر',
         'demo_s6_explain': 'صنّفنا المريض وفق معايير جمعية القلب الأمريكية ACC/AHA 2019: منخفض (<5%) / حدّي (5-7.5%) / متوسط (7.5-20%) / عالي (>20%).',
         'demo_s6_final_label': 'تصنيف المريض',
 
         # Step 7 — Final Decision + Recommendations
-        'demo_s7_title': '✅ المرحلة 7: القرار النهائي والتوصيات',
+        'demo_s7_title': 'المرحلة 7: القرار النهائي والتوصيات',
         'demo_s7_explain': 'هذا هو ملخّص كل ما سبق — مع التوصيات الطبية للمريض. يمكن تحميل التقرير الكامل كـ PDF أسفل الصفحة.',
         'demo_s7_final_decision_label': 'القرار النهائي',
         'demo_s7_recommendations_label': 'التوصيات الطبية',
@@ -412,57 +412,57 @@ UI_TEXT = {
         'show_legacy': 'Show Final Report (Legacy)',
 
         # Step-by-step demo tabs (after 11 fields collected)
-        'tab_old_way': '📊 Classic View',
-        'tab_step_by_step': '🎬 Step-by-Step',
-        'demo_start_button': '🎬 Start Interactive Demo',
+        'tab_old_way': 'Classic View',
+        'tab_step_by_step': 'Step-by-Step',
+        'demo_start_button': 'Start Interactive Demo',
         'demo_start_intro': 'We will walk through the diagnostic journey in 7 stages — each stage explains what happens in plain language. Press "Start" when ready.',
         'demo_progress': 'Stage {n} of {total}',
-        'demo_prev': '⬅️ Previous',
-        'demo_next': 'Next ➡️',
-        'demo_restart': '🔄 Restart from beginning',
-        'demo_finish': '✅ Demo complete — done!',
-        'demo_what_happens': '💡 What happens now?',
+        'demo_prev': 'Previous',
+        'demo_next': 'Next',
+        'demo_restart': 'Restart from beginning',
+        'demo_finish': 'Demo complete — done!',
+        'demo_what_happens': 'What happens now?',
 
         # Step 1 — Raw input
-        'demo_s1_title': '🗂️ Stage 1: Raw Patient Data',
+        'demo_s1_title': 'Stage 1: Raw Patient Data',
         'demo_s1_explain': 'These are the 11 inputs we collected from the patient. The system will use them as the foundation for every decision that follows.',
         'demo_s1_table_field': 'Field',
         'demo_s1_table_value': 'Value',
         'demo_s1_table_source': 'Source',
 
         # Step 2 — Feature Engineering
-        'demo_s2_title': '🧪 Stage 2: Feature Engineering',
+        'demo_s2_title': 'Stage 2: Feature Engineering',
         'demo_s2_explain': 'We transformed 11 simple inputs into 58 advanced medical indicators — like BP staging (Stage 1/2), age-risk multipliers, and cholesterol-diabetes interactions.',
         'demo_s2_count_label': 'Total engineered indicators',
         'demo_s2_examples_label': 'Examples of advanced indicators:',
 
         # Step 3 — Domain Rules
-        'demo_s3_title': '📚 Stage 3: Medical Rules',
+        'demo_s3_title': 'Stage 3: Medical Rules',
         'demo_s3_explain': 'The system holds 48 medical rules grounded in ACC/AHA guidelines. We evaluated every one — these are the rules that fired for this patient:',
         'demo_s3_triggered_label': 'Rules triggered',
         'demo_s3_total_label': 'Total rules available',
 
         # Step 4 — ERPM
-        'demo_s4_title': '🤖 Stage 4: ERPM Neural Network',
+        'demo_s4_title': 'Stage 4: ERPM Neural Network',
         'demo_s4_explain': 'We used a machine-learning model with 79,809 parameters trained on thousands of real cases. It returns the patient\'s heart-disease probability as a number between 0% and 100%.',
         'demo_s4_prediction_label': 'Model prediction',
         'demo_s4_probability_label': 'Disease probability',
         'demo_s4_params_note': 'Model: ERPM • 79,809 parameters • 21 layers',
 
         # Step 5 — Decision Fusion
-        'demo_s5_title': '⚖️ Stage 5: Decision Fusion',
+        'demo_s5_title': 'Stage 5: Decision Fusion',
         'demo_s5_explain': 'We do not rely on a single source — we combined clinical wisdom (medical rules) with computational power (neural network) for a balanced and more accurate decision.',
-        'demo_s5_domain_label': '🧠 Medical Rules verdict',
-        'demo_s5_ml_label': '🤖 Neural Network verdict',
-        'demo_s5_fusion_label': '⚖️ Fused decision',
+        'demo_s5_domain_label': 'Medical Rules verdict',
+        'demo_s5_ml_label': 'Neural Network verdict',
+        'demo_s5_fusion_label': 'Fused decision',
 
         # Step 6 — Risk Stratification
-        'demo_s6_title': '📊 Stage 6: Risk Stratification',
+        'demo_s6_title': 'Stage 6: Risk Stratification',
         'demo_s6_explain': 'We classified the patient per ACC/AHA 2019 standards: Low (<5%) / Borderline (5-7.5%) / Intermediate (7.5-20%) / High (>20%).',
         'demo_s6_final_label': 'Patient classification',
 
         # Step 7 — Final Decision + Recommendations
-        'demo_s7_title': '✅ Stage 7: Final Decision and Recommendations',
+        'demo_s7_title': 'Stage 7: Final Decision and Recommendations',
         'demo_s7_explain': 'This is a summary of everything above — alongside the medical recommendations for the patient. The full PDF report is available below.',
         'demo_s7_final_decision_label': 'Final decision',
         'demo_s7_recommendations_label': 'Medical recommendations',

@@ -1218,6 +1218,34 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
     st.progress(cur / TOTAL_STAGES,
                 text=t('demo_progress', lang).format(n=cur, total=TOTAL_STAGES))
 
+    # ── Flat-table styling: kill the default Streamlit dataframe drop
+    # shadow / hover glow so the tables don't bleed into a grey haze
+    # under the bright stage content. Scoped CSS — only the wrapper here. ─
+    st.html("""
+    <style>
+      /* Strip the container shadow Streamlit applies to st.dataframe */
+      div[data-testid="stDataFrame"],
+      div[data-testid="stDataFrame"] > div,
+      div[data-testid="stDataFrameResizable"],
+      div[data-testid="stDataFrame"] [data-testid="stDataFrameContainer"] {
+          box-shadow: none !important;
+          filter: none !important;
+          border-radius: 6px !important;
+      }
+      /* And the inner hover glow on rows / cells */
+      div[data-testid="stDataFrame"] *,
+      div[data-testid="stDataFrameResizable"] * {
+          box-shadow: none !important;
+          filter: none !important;
+          text-shadow: none !important;
+      }
+      div[data-testid="stDataFrame"] [role="row"]:hover,
+      div[data-testid="stDataFrame"] [role="gridcell"]:hover {
+          background-color: transparent !important;
+      }
+    </style>
+    """)
+
     # ── Pull data once for every stage ─────────────────────────────────────
     chatbot = st.session_state.chatbot
     facts = (chatbot.facts if chatbot else {}) or {}
@@ -1237,9 +1265,9 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
         for fname, val in facts.items():
             meta = field_meta.get(fname) or {}
             if meta.get('source') == 'skipped':
-                src = f"⚠️ {t('skipped_badge', lang)}"
+                src = t('skipped_badge', lang)
             elif meta.get('source') == 'user':
-                src = '✅ ' + ('User' if lang == 'en' else 'المريض')
+                src = 'User' if lang == 'en' else 'المريض'
             else:
                 src = '—'
             rows.append({
