@@ -1404,6 +1404,36 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
             else:
                 st.success(fused)
 
+        st.markdown('---')
+        # ── How the two decisions were fused ────────────────────────────
+        st.markdown(f"#### {t('demo_s5_how_label', lang)}")
+        st.markdown(t('demo_s5_how_intro', lang))
+
+        reasoning = (final_d.get('reasoning_ar') if lang == 'ar'
+                     else final_d.get('reasoning_en')) or '—'
+        confidence = float(final_d.get('confidence', 0) or 0)
+        st.html(_demo_html_table(
+            rows=[
+                [t('demo_s5_rule_fired', lang), reasoning],
+                [t('demo_s5_confidence_label', lang), f"{confidence*100:.0f}%"],
+            ],
+            headers=[
+                'البند' if lang == 'ar' else 'Item',
+                'القيمة' if lang == 'ar' else 'Value',
+            ],
+            lang=lang,
+        ))
+
+        # ── Full decision tree visual (with patient's path highlighted) ──
+        st.markdown(f"**{t('demo_s5_tree_label', lang)}**")
+        try:
+            from ui.decision_tree_viz import create_decision_tree_diagram
+            fig_tree = create_decision_tree_diagram(final_d)
+            st.plotly_chart(fig_tree, use_container_width=True,
+                            key='demo_s5_decision_tree')
+        except Exception as _e:
+            st.warning(f"Decision tree could not render: {_e}")
+
     elif cur == 6:
         st.markdown(f"### {t('demo_s6_title', lang)}")
         st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s6_explain', lang)}")

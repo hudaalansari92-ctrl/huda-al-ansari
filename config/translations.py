@@ -177,6 +177,11 @@ UI_TEXT = {
         'demo_s5_domain_label': 'رأي القواعد الطبية',
         'demo_s5_ml_label': 'رأي الشبكة العصبية',
         'demo_s5_fusion_label': 'القرار المُدمج',
+        'demo_s5_how_label': 'كيف تم دمج القرارين؟',
+        'demo_s5_how_intro': 'يستخدم النظام شجرة قرار من 10 قواعد ذات أولوية تفحص نتيجة القواعد الطبية ونتيجة الشبكة العصبية معاً — وأوّل قاعدة تنطبق هي التي تُحدّد القرار النهائي.',
+        'demo_s5_rule_fired': 'القاعدة المُطبَّقة على هذه الحالة:',
+        'demo_s5_confidence_label': 'ثقة القرار',
+        'demo_s5_tree_label': 'شجرة القرار الكاملة (المسار المُطبَّق مظلَّل):',
 
         # Step 6 — Risk Stratification
         'demo_s6_title': 'المرحلة 6: تصنيف مستوى الخطر',
@@ -455,6 +460,11 @@ UI_TEXT = {
         'demo_s5_domain_label': 'Medical Rules verdict',
         'demo_s5_ml_label': 'Neural Network verdict',
         'demo_s5_fusion_label': 'Fused decision',
+        'demo_s5_how_label': 'How were the two decisions fused?',
+        'demo_s5_how_intro': 'The system uses a priority-ordered decision tree of 10 rules that look at the medical rules verdict and the neural network verdict together — the first rule that matches sets the final decision.',
+        'demo_s5_rule_fired': 'Rule applied to this case:',
+        'demo_s5_confidence_label': 'Decision confidence',
+        'demo_s5_tree_label': 'Full decision tree (the path applied is highlighted):',
 
         # Step 6 — Risk Stratification
         'demo_s6_title': 'Stage 6: Risk Stratification',
