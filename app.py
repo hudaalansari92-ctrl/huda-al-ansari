@@ -1186,6 +1186,207 @@ def render_sidebar():
             with st.expander(t('writing_examples', lang), expanded=False):
                 st.html(EXAMPLES_HTML.get(lang, EXAMPLES_HTML['ar']))
 
+def _render_step_by_step_demo(final_assessment: dict, lang: str):
+    """
+    Examiner-facing walkthrough — 7 stages of the diagnostic pipeline.
+
+    Tab[1] of the post-11-fields assessment view. Replays the same data
+    the classic view shows but reveals it one stage at a time, with a
+    plain-language "what happens now?" panel above each stage so the
+    committee follows the reasoning, not just the result.
+    """
+    # ── State: which stage is currently visible ────────────────────────────
+    if 'demo_step' not in st.session_state:
+        st.session_state.demo_step = 0  # 0 = "press start"; 1..7 = stages
+    TOTAL_STAGES = 7
+
+    cur = st.session_state.demo_step
+
+    # ── Stage 0: start gate ────────────────────────────────────────────────
+    if cur == 0:
+        st.info(t('demo_start_intro', lang))
+        col_a, col_b, col_c = st.columns([1, 2, 1])
+        with col_b:
+            if st.button(t('demo_start_button', lang),
+                         use_container_width=True, type='primary',
+                         key='demo_start_btn'):
+                st.session_state.demo_step = 1
+                st.rerun()
+        return
+
+    # ── Progress bar (stages 1..7) ─────────────────────────────────────────
+    st.progress(cur / TOTAL_STAGES,
+                text=t('demo_progress', lang).format(n=cur, total=TOTAL_STAGES))
+
+    # ── Pull data once for every stage ─────────────────────────────────────
+    chatbot = st.session_state.chatbot
+    facts = (chatbot.facts if chatbot else {}) or {}
+    field_meta = (chatbot.get_field_metadata() if chatbot else {}) or {}
+    field_names = get_field_names_dict(lang)
+
+    domain = final_assessment.get('domain_rules', {}) or {}
+    adv = final_assessment.get('advanced_features', {}) or {}
+    ml = final_assessment.get('ml_prediction', {}) or {}
+    final_d = final_assessment.get('final_decision', {}) or {}
+
+    # ── Render the current stage ───────────────────────────────────────────
+    if cur == 1:
+        st.markdown(f"### {t('demo_s1_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s1_explain', lang)}")
+        rows = []
+        for fname, val in facts.items():
+            meta = field_meta.get(fname) or {}
+            if meta.get('source') == 'skipped':
+                src = f"⚠️ {t('skipped_badge', lang)}"
+            elif meta.get('source') == 'user':
+                src = '✅ ' + ('User' if lang == 'en' else 'المريض')
+            else:
+                src = '—'
+            rows.append({
+                t('demo_s1_table_field', lang): field_names.get(fname, fname),
+                t('demo_s1_table_value', lang): str(val),
+                t('demo_s1_table_source', lang): src,
+            })
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True,
+                         hide_index=True)
+        else:
+            st.warning('No facts collected yet.' if lang == 'en'
+                       else 'لم يتم جمع أي حقائق بعد.')
+
+    elif cur == 2:
+        st.markdown(f"### {t('demo_s2_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s2_explain', lang)}")
+        total_features = adv.get('total_features', 58)
+        st.metric(t('demo_s2_count_label', lang), total_features)
+        summary = adv.get('summary', {}) or {}
+        if summary:
+            st.markdown(f"**{t('demo_s2_examples_label', lang)}**")
+            example_cols = st.columns(2)
+            entries = list(summary.items())[:6]
+            for i, (k, v) in enumerate(entries):
+                with example_cols[i % 2]:
+                    st.markdown(f"• **{k}** → `{v}`")
+
+    elif cur == 3:
+        st.markdown(f"### {t('demo_s3_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s3_explain', lang)}")
+        triggered = (final_d.get('metadata', {}) or {}).get('triggered_rules', []) or []
+        if not triggered:
+            triggered = (domain.get('insights', {}) or {}).get('triggered_rules', []) or []
+        c1, c2 = st.columns(2)
+        with c1:
+            st.metric(t('demo_s3_triggered_label', lang), len(triggered))
+        with c2:
+            st.metric(t('demo_s3_total_label', lang), 48)
+        if triggered:
+            rows = []
+            for r in triggered[:10]:
+                rows.append({
+                    'Rule ID': r.get('rule_id', '—'),
+                    'Condition': r.get('condition', ''),
+                    'Confidence': f"{float(r.get('confidence', 0)) * 100:.0f}%",
+                })
+            st.dataframe(pd.DataFrame(rows), use_container_width=True,
+                         hide_index=True)
+
+    elif cur == 4:
+        st.markdown(f"### {t('demo_s4_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s4_explain', lang)}")
+        prediction = ml.get('prediction', 'Unknown')
+        probability = float(ml.get('probability', 0) or 0)
+        c1, c2 = st.columns(2)
+        with c1:
+            if prediction == 'Positive':
+                st.error(f"**{t('demo_s4_prediction_label', lang)}:** {t('positive', lang)}")
+            else:
+                st.success(f"**{t('demo_s4_prediction_label', lang)}:** {t('negative', lang)}")
+        with c2:
+            st.metric(t('demo_s4_probability_label', lang), f"{probability*100:.1f}%")
+        st.caption(t('demo_s4_params_note', lang))
+
+    elif cur == 5:
+        st.markdown(f"### {t('demo_s5_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s5_explain', lang)}")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            domain_risk = ((domain.get('insights', {}) or {}).get('risk_level')
+                           or 'UNKNOWN')
+            st.markdown(f"**{t('demo_s5_domain_label', lang)}**")
+            st.info(domain_risk)
+        with c2:
+            ml_risk = ml.get('risk_level', 'UNKNOWN')
+            st.markdown(f"**{t('demo_s5_ml_label', lang)}**")
+            st.info(ml_risk)
+        with c3:
+            fused = final_d.get('final_risk_level', 'UNKNOWN')
+            st.markdown(f"**{t('demo_s5_fusion_label', lang)}**")
+            if fused in ('HIGH', 'CRITICAL'):
+                st.error(fused)
+            elif fused == 'MODERATE':
+                st.warning(fused)
+            else:
+                st.success(fused)
+
+    elif cur == 6:
+        st.markdown(f"### {t('demo_s6_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s6_explain', lang)}")
+        final_risk = final_d.get('final_risk_level', 'UNKNOWN')
+        final_risk_display = (final_d.get('final_risk_level_ar', final_risk)
+                              if lang == 'ar' else final_risk)
+        st.markdown(f"**{t('demo_s6_final_label', lang)}**")
+        if final_risk in ('HIGH', 'CRITICAL'):
+            st.error(f"## {final_risk_display}")
+        elif final_risk == 'MODERATE':
+            st.warning(f"## {final_risk_display}")
+        else:
+            st.success(f"## {final_risk_display}")
+        # ACC/AHA band reference
+        st.caption('< 5% Low • 5-7.5% Borderline • 7.5-20% Intermediate • > 20% High')
+
+    elif cur == 7:
+        st.markdown(f"### {t('demo_s7_title', lang)}")
+        st.info(f"**{t('demo_what_happens', lang)}**  \n{t('demo_s7_explain', lang)}")
+        # Final decision summary
+        final_risk = final_d.get('final_risk_level', 'UNKNOWN')
+        final_risk_display = (final_d.get('final_risk_level_ar', final_risk)
+                              if lang == 'ar' else final_risk)
+        st.markdown(f"**{t('demo_s7_final_decision_label', lang)}:** {final_risk_display}")
+        # Recommendations
+        rec_key = 'recommendations_ar' if lang == 'ar' else 'recommendations'
+        recs = ((domain.get('insights', {}) or {}).get(rec_key)
+                or (domain.get('insights', {}) or {}).get('recommendations_ar')
+                or [])
+        if recs:
+            st.markdown(f"**{t('demo_s7_recommendations_label', lang)}**")
+            for r in recs[:5]:
+                st.markdown(f"• {r}")
+        st.success(t('demo_finish', lang))
+
+    # ── Navigation buttons ─────────────────────────────────────────────────
+    st.markdown('---')
+    nav_l, nav_m, nav_r = st.columns([1, 1, 1])
+    with nav_l:
+        if cur > 1 and st.button(t('demo_prev', lang),
+                                 use_container_width=True,
+                                 key=f'demo_prev_{cur}'):
+            st.session_state.demo_step = cur - 1
+            st.rerun()
+    with nav_m:
+        if st.button(t('demo_restart', lang),
+                     use_container_width=True,
+                     key=f'demo_restart_{cur}'):
+            st.session_state.demo_step = 0
+            st.rerun()
+    with nav_r:
+        if cur < TOTAL_STAGES and st.button(t('demo_next', lang),
+                                            use_container_width=True,
+                                            type='primary',
+                                            key=f'demo_next_{cur}'):
+            st.session_state.demo_step = cur + 1
+            st.rerun()
+
+
 def render_main_area():
     """عرض المنطقة الرئيسية"""
     lang = get_lang()
@@ -1889,403 +2090,412 @@ def render_main_area():
                     st.markdown("---")
                     st.markdown(f"## {t('comprehensive_assessment', lang)}")
                     st.markdown("---")
+                    # ─── Examiner-facing dual view: classic snapshot vs step-by-step walkthrough ───
+                    tab_old, tab_step = st.tabs([
+                        t("tab_old_way", lang),
+                        t("tab_step_by_step", lang),
+                    ])
+                    with tab_old:
 
-                    # ========================================
-                    # Section 1: Domain Rules Analysis
-                    # ========================================
-                    st.markdown(f"### {t('section1_domain', lang)}")
-                    st.markdown(f"**{t('section1_subtitle', lang)}**")
+                        # ========================================
+                        # Section 1: Domain Rules Analysis
+                        # ========================================
+                        st.markdown(f"### {t('section1_domain', lang)}")
+                        st.markdown(f"**{t('section1_subtitle', lang)}**")
                     
-                    domain_assessment = final_assessment.get('domain_rules', {})
+                        domain_assessment = final_assessment.get('domain_rules', {})
                     
-                    if domain_assessment.get('status') == 'complete':
-                        insights = domain_assessment.get('insights', {})
+                        if domain_assessment.get('status') == 'complete':
+                            insights = domain_assessment.get('insights', {})
                         
-                        risk_level_display = insights.get('risk_level_ar', 'غير معروف') if lang == 'ar' else insights.get('risk_level', 'UNKNOWN')
-                        risk_level = insights.get('risk_level', 'UNKNOWN')
+                            risk_level_display = insights.get('risk_level_ar', 'غير معروف') if lang == 'ar' else insights.get('risk_level', 'UNKNOWN')
+                            risk_level = insights.get('risk_level', 'UNKNOWN')
 
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if risk_level == 'HIGH':
-                                st.error(f"**{t('risk_level_label', lang)}:** {risk_level_display}")
-                            elif risk_level == 'MEDIUM':
-                                st.warning(f"**{t('risk_level_label', lang)}:** {risk_level_display}")
-                            else:
-                                st.success(f"**{t('risk_level_label', lang)}:** {risk_level_display}")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if risk_level == 'HIGH':
+                                    st.error(f"**{t('risk_level_label', lang)}:** {risk_level_display}")
+                                elif risk_level == 'MEDIUM':
+                                    st.warning(f"**{t('risk_level_label', lang)}:** {risk_level_display}")
+                                else:
+                                    st.success(f"**{t('risk_level_label', lang)}:** {risk_level_display}")
 
-                        with col2:
-                            st.info(f"**{t('rules_applied', lang)}:** {insights.get('triggered_rules_count', 0)}/48")
+                            with col2:
+                                st.info(f"**{t('rules_applied', lang)}:** {insights.get('triggered_rules_count', 0)}/48")
 
-                        risk_factors_key = 'risk_factors_ar' if lang == 'ar' else 'risk_factors'
-                        if insights.get(risk_factors_key, insights.get('risk_factors_ar')):
-                            factors = insights.get(risk_factors_key, insights.get('risk_factors_ar', []))
-                            with st.expander(t('risk_factors', lang), expanded=True):
-                                for factor in factors[:5]:
-                                    st.markdown(f"• {factor}")
+                            risk_factors_key = 'risk_factors_ar' if lang == 'ar' else 'risk_factors'
+                            if insights.get(risk_factors_key, insights.get('risk_factors_ar')):
+                                factors = insights.get(risk_factors_key, insights.get('risk_factors_ar', []))
+                                with st.expander(t('risk_factors', lang), expanded=True):
+                                    for factor in factors[:5]:
+                                        st.markdown(f"• {factor}")
 
-                        rec_key = 'recommendations_ar' if lang == 'ar' else 'recommendations'
-                        if insights.get(rec_key, insights.get('recommendations_ar')):
-                            recs = insights.get(rec_key, insights.get('recommendations_ar', []))
-                            with st.expander(t('recommendations', lang), expanded=False):
-                                for rec in recs[:3]:
-                                    st.markdown(f"• {rec}")
+                            rec_key = 'recommendations_ar' if lang == 'ar' else 'recommendations'
+                            if insights.get(rec_key, insights.get('recommendations_ar')):
+                                recs = insights.get(rec_key, insights.get('recommendations_ar', []))
+                                with st.expander(t('recommendations', lang), expanded=False):
+                                    for rec in recs[:3]:
+                                        st.markdown(f"• {rec}")
                     
-                    st.markdown("---")
-                    
-                    # ========================================
-                    # Section 2: Advanced Features Summary
-                    # ========================================
-                    st.markdown(f"### {t('section2_features', lang)}")
-                    st.markdown(f"**{t('section2_subtitle', lang)}**")
-                    
-                    adv_features = final_assessment.get('advanced_features', {})
-                    features_summary = adv_features.get('summary', {})
-                    
-                    if features_summary:
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.markdown(f"**{t('classification', lang)}**")
-                            st.markdown(f"• **{t('age', lang)}:** {features_summary.get('age_category', 'N/A')}")
-                            st.markdown(f"• **{t('cholesterol', lang)}:** {features_summary.get('cholesterol_level', 'N/A')}")
-                            st.markdown(f"• **{t('blood_pressure', lang)}:** {features_summary.get('bp_stage', 'N/A')}")
-
-                        with col2:
-                            st.markdown(f"**{t('physical_capacity', lang)}**")
-                            st.markdown(f"• **{t('capacity', lang)}:** {features_summary.get('exercise_capacity', 'N/A')}")
-                            st.markdown(f"• **Framingham:** {features_summary.get('framingham_score', 'N/A')}")
-                            st.markdown(f"• **ST Depression:** {features_summary.get('st_depression', 'N/A')}")
-
-                        st.info(f"**{t('total_features', lang)}** {adv_features.get('total_features', 0)} feature")
-                    
-                    st.markdown("---")
-                    
-                    # ========================================
-                    # Section 3: ML Model Prediction
-                    # ========================================
-                    st.markdown(f"### {t('section3_ml', lang)}")
-                    st.markdown(f"**{t('section3_subtitle', lang)}**")
-                    
-                    ml_prediction = final_assessment.get('ml_prediction', {})
-                    
-                    if ml_prediction:
-                        col1, col2, col3 = st.columns(3)
-                        
-                        with col1:
-                            prediction = ml_prediction.get('prediction', 'Unknown')
-                            if prediction == 'Positive':
-                                st.error(f"**{t('prediction', lang)}:** {t('positive', lang)}")
-                            else:
-                                st.success(f"**{t('prediction', lang)}:** {t('negative', lang)}")
-
-                        with col2:
-                            probability = ml_prediction.get('probability', 0)
-                            st.metric(f"**{t('probability', lang)}**", f"{probability*100:.1f}%")
-
-                        with col3:
-                            risk_level = ml_prediction.get('risk_level', 'UNKNOWN')
-                            risk_colors = {
-                                'CRITICAL': '',
-                                'HIGH': '',
-                                'MODERATE': '',
-                                'LOW': ''
-                            }
-                            st.metric(f"**{t('risk_level_label', lang)}**", f"{risk_colors.get(risk_level, '')} {risk_level}")
-
-                        st.caption(f"{t('source', lang)}: {ml_prediction.get('source', 'Unknown')}")
-                    
-                    st.markdown("---")
-                    
-                    # ========================================
-                    # Section 4: Final Decision
-                    # ========================================
-                    st.markdown(f"### {t('section4_decision', lang)}")
-                    st.markdown(f"**{t('section4_subtitle', lang)}**")
-                    
-                    final_decision = final_assessment.get('final_decision', {})
-                    
-                    if final_decision:
-                        # Final Risk Level - Big Display
-                        final_risk = final_decision.get('final_risk_level', 'UNKNOWN')
-                        final_risk_display = final_decision.get('final_risk_level_ar', 'غير معروف') if lang == 'ar' else final_risk
-                        confidence = final_decision.get('confidence', 0)
-
-                        decision_text = f"### **{t('final_decision', lang)}:** {final_risk_display} ({final_risk})"
-                        confidence_text = f"**{t('confidence', lang)}:** {confidence*100:.0f}%"
-
-                        if final_risk == 'CRITICAL':
-                            st.error(decision_text)
-                            st.error(confidence_text)
-                        elif final_risk == 'HIGH':
-                            st.warning(decision_text)
-                            st.warning(confidence_text)
-                        elif final_risk == 'MODERATE' or final_risk == 'MODERATE-HIGH':
-                            st.info(decision_text)
-                            st.info(confidence_text)
-                        else:
-                            st.success(decision_text)
-                            st.success(confidence_text)
-
-                        reasoning_text = final_decision.get('reasoning_ar', '') if lang == 'ar' else final_decision.get('reasoning', final_decision.get('reasoning_ar', ''))
-                        if reasoning_text:
-                            st.markdown(f"**{t('reasoning', lang)}:** {reasoning_text}")
-
-                        sources = final_decision.get('sources', {})
-                        if sources:
-                            with st.expander(t('decision_sources', lang), expanded=True):
-                                col1, col2 = st.columns(2)
-
-                                with col1:
-                                    st.markdown(f"**{t('medical_rules', lang)}**")
-                                    domain_src = sources.get('domain_rules', {})
-                                    st.markdown(f"• {t('risk_level_label', lang)}: {domain_src.get('risk_level', 'N/A')}")
-                                    st.markdown(f"• {t('applied_rules', lang)}: {domain_src.get('triggered_rules', 0)}")
-                                    st.markdown(f"• Framingham: {domain_src.get('framingham_score', 0)}/7")
-
-                                with col2:
-                                    st.markdown(f"**{t('ml_model', lang)}**")
-                                    ml_src = sources.get('ml_model', {})
-                                    st.markdown(f"• {t('probability', lang)}: {ml_src.get('probability', 0)*100:.1f}%")
-                                    st.markdown(f"• {t('prediction', lang)}: {ml_src.get('prediction', 'N/A')}")
-                                    st.markdown(f"• {t('source', lang)}: {ml_src.get('source', 'N/A')}")
-
-                        recommendations = final_decision.get('recommendations', [])
-                        if recommendations:
-                            st.markdown(f"#### {t('final_recommendations', lang)}")
-                            for i, rec in enumerate(recommendations[:6], 1):
-                                st.markdown(f"{i}. {rec}")
-
                         st.markdown("---")
-
-                        st.markdown(f"#### {t('decision_tree_title', lang)}")
-                        st.markdown(f"**{t('decision_tree_subtitle', lang)}**")
-
-                        _tab_triggered_label = ('القواعد المُطبَّقة' if lang == 'ar'
-                                                else 'Triggered Domain Rules')
-                        tab1, tab2, tab_triggered, tab3 = st.tabs([
-                            t('tab_tree', lang),
-                            t('tab_rules', lang),
-                            _tab_triggered_label,
-                            t('tab_flow', lang)
-                        ])
-
-                        with tab1:
-                            st.markdown("**sklearn Decision Tree Diagram**")
-                            st.markdown("*Trained tree showing decision splits and classifications*")
-                            fig_tree = create_decision_tree_diagram(final_decision)
-                            st.plotly_chart(fig_tree, use_container_width=True)
-
-                        with tab2:
-                            st.markdown("**All 10 Decision Rules**")
-                            st.markdown("*Conditions and confidence levels for each rule*")
-                            fig_table = create_decision_rules_table(final_decision)
-                            st.plotly_chart(fig_table, use_container_width=True)
-
-                        with tab_triggered:
-                            # Show ALL triggered domain rules (the N/48 list).
-                            _triggered = (final_decision.get('metadata', {})
-                                          .get('triggered_rules', []) or [])
-                            _total_rules = 48
-                            _hdr = (f"**القواعد المُطبَّقة: {len(_triggered)} / {_total_rules}**"
-                                    if lang == 'ar'
-                                    else f"**Triggered Rules: {len(_triggered)} / {_total_rules}**")
-                            _sub = ("الشروط ودرجات الثقة لكل قاعدة (مُرتَّبة حسب الأهمية)"
-                                    if lang == 'ar'
-                                    else "Conditions and confidence levels for each rule "
-                                         "(sorted by importance)")
-                            st.markdown(_hdr)
-                            st.markdown(f"*{_sub}*")
-
-                            if _triggered:
-                                # Strip ALL shadows / glows from the
-                                # triggered-rules dataframe — both the
-                                # static container shadow Streamlit applies
-                                # by default and any hover/focus glow — so
-                                # the table reads as a calm, flat grid.
-                                st.html("""
-                                <style>
-                                  /* Container — kill the outer drop shadow */
-                                  div[data-testid="stDataFrame"],
-                                  div[data-testid="stDataFrame"] > div,
-                                  div[data-testid="stDataFrameResizable"],
-                                  div[data-testid="stDataFrame"] [data-testid="stDataFrameContainer"] {
-                                      box-shadow: none !important;
-                                      filter: none !important;
-                                      border-radius: 6px !important;
-                                  }
-                                  /* Inner cells / rows — no hover glow either */
-                                  div[data-testid="stDataFrame"] *,
-                                  div[data-testid="stDataFrameResizable"] * {
-                                      box-shadow: none !important;
-                                      filter: none !important;
-                                      text-shadow: none !important;
-                                  }
-                                  div[data-testid="stDataFrame"] [role="row"]:hover,
-                                  div[data-testid="stDataFrame"] [role="gridcell"]:hover,
-                                  div[data-testid="stDataFrameResizable"] [role="row"]:hover,
-                                  div[data-testid="stDataFrameResizable"] [role="gridcell"]:hover {
-                                      background-color: transparent !important;
-                                  }
-                                </style>
-                                """)
-                                import pandas as _pd
-                                _rows = []
-                                _max_w = max((float(_r.get('weight', 0)) for _r in _triggered), default=1.0)
-                                for _i, _r in enumerate(_triggered, 1):
-                                    _rows.append({
-                                        '#': _i,
-                                        'Rule ID': _r.get('rule_id', f'R{_i}'),
-                                        'Feature': _r.get('feature_name', '') or '—',
-                                        'Condition': _r.get('condition', ''),
-                                        'Weight': round(float(_r.get('weight', 0)), 3),
-                                        'Confidence': float(_r.get('confidence', 0)),
-                                        'Lift': round(float(_r.get('lift', 0)), 2),
-                                    })
-                                _df = _pd.DataFrame(_rows)
-                                # Use native Streamlit column_config (no matplotlib needed)
-                                # to render Weight as a progress bar and Confidence as %.
-                                st.dataframe(
-                                    _df,
-                                    use_container_width=True,
-                                    height=560,
-                                    hide_index=True,
-                                    column_config={
-                                        'Weight': st.column_config.ProgressColumn(
-                                            'Weight',
-                                            help='Rule weight (importance) — relative to the strongest triggered rule',
-                                            format='%.3f',
-                                            min_value=0.0,
-                                            max_value=float(_max_w) or 1.0,
-                                        ),
-                                        'Confidence': st.column_config.ProgressColumn(
-                                            'Confidence',
-                                            help='Posterior confidence of the rule (0–100%)',
-                                            format='%.1f%%',
-                                            min_value=0.0,
-                                            max_value=1.0,
-                                        ),
-                                    },
-                                )
-                            else:
-                                _empty = ('لم يتم تفعيل أي قاعدة (جميع المؤشرات ضمن الحدود الطبيعية).'
-                                          if lang == 'ar'
-                                          else 'No domain rule was triggered for this patient '
-                                               '(all features within normal ranges).')
-                                st.info(_empty)
-
-                        with tab3:
-                            st.markdown("**Complete Decision Process**")
-                            st.markdown("*From input to final decision*")
-                            fig_flow = create_simple_decision_tree_flow(final_decision)
-                            st.plotly_chart(fig_flow, use_container_width=True)
                     
-                    st.markdown("---")
+                        # ========================================
+                        # Section 2: Advanced Features Summary
+                        # ========================================
+                        st.markdown(f"### {t('section2_features', lang)}")
+                        st.markdown(f"**{t('section2_subtitle', lang)}**")
+                    
+                        adv_features = final_assessment.get('advanced_features', {})
+                        features_summary = adv_features.get('summary', {})
+                    
+                        if features_summary:
+                            col1, col2 = st.columns(2)
+                        
+                            with col1:
+                                st.markdown(f"**{t('classification', lang)}**")
+                                st.markdown(f"• **{t('age', lang)}:** {features_summary.get('age_category', 'N/A')}")
+                                st.markdown(f"• **{t('cholesterol', lang)}:** {features_summary.get('cholesterol_level', 'N/A')}")
+                                st.markdown(f"• **{t('blood_pressure', lang)}:** {features_summary.get('bp_stage', 'N/A')}")
 
-                    # ========================================
-                    # PDF Report Download (Arabic-aware)
-                    # ========================================
-                    _pdf_label = ('⬇️ تحميل التقرير PDF' if lang == 'ar'
-                                  else '⬇️ Download PDF Report')
-                    _pdf_help = ('سيتم تنزيل التقرير بصيغة PDF مع دعم كامل للغة العربية'
-                                 if lang == 'ar'
-                                 else 'Generates an Arabic-aware PDF copy of this assessment')
-                    try:
-                        from core.pdf_report import generate_pdf_report
-                        _user_obj = st.session_state.get('user', {}) or {}
-                        _patient_name = (_user_obj.get('full_name')
-                                         or _user_obj.get('username', ''))
-                        _session_id_for_pdf = st.session_state.get('current_session_id', '')
-                        _facts_for_pdf = (st.session_state.chatbot.facts
-                                          if st.session_state.chatbot else {})
-                        _pdf_bytes = generate_pdf_report(
-                            final_assessment,
-                            lang=lang,
-                            patient_name=_patient_name,
-                            session_id=_session_id_for_pdf,
-                            facts=_facts_for_pdf,
-                        )
-                        _pdf_filename = (
-                            f"assessment_{_session_id_for_pdf or 'report'}.pdf"
-                        )
-                        st.download_button(
-                            label=_pdf_label,
-                            data=_pdf_bytes,
-                            file_name=_pdf_filename,
-                            mime='application/pdf',
-                            help=_pdf_help,
-                            use_container_width=True,
-                            type='primary',
-                        )
-                    except Exception as _pdf_err:
-                        st.warning(
-                            (f"تعذّر إنشاء PDF: {_pdf_err}"
-                             if lang == 'ar'
-                             else f"Could not build PDF: {_pdf_err}")
-                        )
+                            with col2:
+                                st.markdown(f"**{t('physical_capacity', lang)}**")
+                                st.markdown(f"• **{t('capacity', lang)}:** {features_summary.get('exercise_capacity', 'N/A')}")
+                                st.markdown(f"• **Framingham:** {features_summary.get('framingham_score', 'N/A')}")
+                                st.markdown(f"• **ST Depression:** {features_summary.get('st_depression', 'N/A')}")
 
-                    st.markdown("---")
+                            st.info(f"**{t('total_features', lang)}** {adv_features.get('total_features', 0)} feature")
+                    
+                        st.markdown("---")
+                    
+                        # ========================================
+                        # Section 3: ML Model Prediction
+                        # ========================================
+                        st.markdown(f"### {t('section3_ml', lang)}")
+                        st.markdown(f"**{t('section3_subtitle', lang)}**")
+                    
+                        ml_prediction = final_assessment.get('ml_prediction', {})
+                    
+                        if ml_prediction:
+                            col1, col2, col3 = st.columns(3)
+                        
+                            with col1:
+                                prediction = ml_prediction.get('prediction', 'Unknown')
+                                if prediction == 'Positive':
+                                    st.error(f"**{t('prediction', lang)}:** {t('positive', lang)}")
+                                else:
+                                    st.success(f"**{t('prediction', lang)}:** {t('negative', lang)}")
 
-                    # ========================================
-                    # Section 5: Groq AI Enhancement (v7.0.0)
-                    # ========================================
-                    groq_interpretation = final_assessment.get('groq_interpretation')
-                    groq_recommendations = final_assessment.get('groq_recommendations')
+                            with col2:
+                                probability = ml_prediction.get('probability', 0)
+                                st.metric(f"**{t('probability', lang)}**", f"{probability*100:.1f}%")
 
-                    if groq_interpretation or groq_recommendations:
-                        st.markdown(f"### {t('section5_groq', lang)}")
-                        st.markdown(f"**{t('section5_subtitle', lang)}**")
+                            with col3:
+                                risk_level = ml_prediction.get('risk_level', 'UNKNOWN')
+                                risk_colors = {
+                                    'CRITICAL': '',
+                                    'HIGH': '',
+                                    'MODERATE': '',
+                                    'LOW': ''
+                                }
+                                st.metric(f"**{t('risk_level_label', lang)}**", f"{risk_colors.get(risk_level, '')} {risk_level}")
 
-                        if groq_interpretation:
-                            st.html(f"""
-                            <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-                                        padding: 25px; border-radius: 16px; margin: 15px 0;
-                                        border-left: 5px solid #4caf50;
-                                        box-shadow: 0 4px 12px rgba(76,175,80,0.15);'>
-                                <div style='font-size: 1.1rem; font-weight: 700; color: #2e7d32;
-                                            margin-bottom: 12px; display: flex; align-items: center; gap: 8px;'>
-                                    {t('ai_interpretation', lang)}
-                                </div>
-                                <div style='color: #1b5e20; font-size: 1.05rem; line-height: 1.8;'>
-                                    {groq_interpretation}
-                                </div>
-                            </div>
-                            """)
+                            st.caption(f"{t('source', lang)}: {ml_prediction.get('source', 'Unknown')}")
+                    
+                        st.markdown("---")
+                    
+                        # ========================================
+                        # Section 4: Final Decision
+                        # ========================================
+                        st.markdown(f"### {t('section4_decision', lang)}")
+                        st.markdown(f"**{t('section4_subtitle', lang)}**")
+                    
+                        final_decision = final_assessment.get('final_decision', {})
+                    
+                        if final_decision:
+                            # Final Risk Level - Big Display
+                            final_risk = final_decision.get('final_risk_level', 'UNKNOWN')
+                            final_risk_display = final_decision.get('final_risk_level_ar', 'غير معروف') if lang == 'ar' else final_risk
+                            confidence = final_decision.get('confidence', 0)
 
-                        if groq_recommendations:
-                            recs_html = "".join([
-                                f"<div style='background: rgba(255,255,255,0.7); padding: 12px 16px; "
-                                f"margin: 8px 0; border-radius: 10px; font-size: 1rem; "
-                                f"border-left: 3px solid #7b1fa2;'>{rec}</div>"
-                                for rec in groq_recommendations
+                            decision_text = f"### **{t('final_decision', lang)}:** {final_risk_display} ({final_risk})"
+                            confidence_text = f"**{t('confidence', lang)}:** {confidence*100:.0f}%"
+
+                            if final_risk == 'CRITICAL':
+                                st.error(decision_text)
+                                st.error(confidence_text)
+                            elif final_risk == 'HIGH':
+                                st.warning(decision_text)
+                                st.warning(confidence_text)
+                            elif final_risk == 'MODERATE' or final_risk == 'MODERATE-HIGH':
+                                st.info(decision_text)
+                                st.info(confidence_text)
+                            else:
+                                st.success(decision_text)
+                                st.success(confidence_text)
+
+                            reasoning_text = final_decision.get('reasoning_ar', '') if lang == 'ar' else final_decision.get('reasoning', final_decision.get('reasoning_ar', ''))
+                            if reasoning_text:
+                                st.markdown(f"**{t('reasoning', lang)}:** {reasoning_text}")
+
+                            sources = final_decision.get('sources', {})
+                            if sources:
+                                with st.expander(t('decision_sources', lang), expanded=True):
+                                    col1, col2 = st.columns(2)
+
+                                    with col1:
+                                        st.markdown(f"**{t('medical_rules', lang)}**")
+                                        domain_src = sources.get('domain_rules', {})
+                                        st.markdown(f"• {t('risk_level_label', lang)}: {domain_src.get('risk_level', 'N/A')}")
+                                        st.markdown(f"• {t('applied_rules', lang)}: {domain_src.get('triggered_rules', 0)}")
+                                        st.markdown(f"• Framingham: {domain_src.get('framingham_score', 0)}/7")
+
+                                    with col2:
+                                        st.markdown(f"**{t('ml_model', lang)}**")
+                                        ml_src = sources.get('ml_model', {})
+                                        st.markdown(f"• {t('probability', lang)}: {ml_src.get('probability', 0)*100:.1f}%")
+                                        st.markdown(f"• {t('prediction', lang)}: {ml_src.get('prediction', 'N/A')}")
+                                        st.markdown(f"• {t('source', lang)}: {ml_src.get('source', 'N/A')}")
+
+                            recommendations = final_decision.get('recommendations', [])
+                            if recommendations:
+                                st.markdown(f"#### {t('final_recommendations', lang)}")
+                                for i, rec in enumerate(recommendations[:6], 1):
+                                    st.markdown(f"{i}. {rec}")
+
+                            st.markdown("---")
+
+                            st.markdown(f"#### {t('decision_tree_title', lang)}")
+                            st.markdown(f"**{t('decision_tree_subtitle', lang)}**")
+
+                            _tab_triggered_label = ('القواعد المُطبَّقة' if lang == 'ar'
+                                                    else 'Triggered Domain Rules')
+                            tab1, tab2, tab_triggered, tab3 = st.tabs([
+                                t('tab_tree', lang),
+                                t('tab_rules', lang),
+                                _tab_triggered_label,
+                                t('tab_flow', lang)
                             ])
-                            st.html(f"""
-                            <div style='background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
-                                        padding: 25px; border-radius: 16px; margin: 15px 0;
-                                        border-left: 5px solid #9c27b0;
-                                        box-shadow: 0 4px 12px rgba(156,39,176,0.15);'>
-                                <div style='font-size: 1.1rem; font-weight: 700; color: #6a1b9a;
-                                            margin-bottom: 12px;'>
-                                    {t('personalized_recommendations', lang)}
+
+                            with tab1:
+                                st.markdown("**sklearn Decision Tree Diagram**")
+                                st.markdown("*Trained tree showing decision splits and classifications*")
+                                fig_tree = create_decision_tree_diagram(final_decision)
+                                st.plotly_chart(fig_tree, use_container_width=True)
+
+                            with tab2:
+                                st.markdown("**All 10 Decision Rules**")
+                                st.markdown("*Conditions and confidence levels for each rule*")
+                                fig_table = create_decision_rules_table(final_decision)
+                                st.plotly_chart(fig_table, use_container_width=True)
+
+                            with tab_triggered:
+                                # Show ALL triggered domain rules (the N/48 list).
+                                _triggered = (final_decision.get('metadata', {})
+                                              .get('triggered_rules', []) or [])
+                                _total_rules = 48
+                                _hdr = (f"**القواعد المُطبَّقة: {len(_triggered)} / {_total_rules}**"
+                                        if lang == 'ar'
+                                        else f"**Triggered Rules: {len(_triggered)} / {_total_rules}**")
+                                _sub = ("الشروط ودرجات الثقة لكل قاعدة (مُرتَّبة حسب الأهمية)"
+                                        if lang == 'ar'
+                                        else "Conditions and confidence levels for each rule "
+                                             "(sorted by importance)")
+                                st.markdown(_hdr)
+                                st.markdown(f"*{_sub}*")
+
+                                if _triggered:
+                                    # Strip ALL shadows / glows from the
+                                    # triggered-rules dataframe — both the
+                                    # static container shadow Streamlit applies
+                                    # by default and any hover/focus glow — so
+                                    # the table reads as a calm, flat grid.
+                                    st.html("""
+                                    <style>
+                                      /* Container — kill the outer drop shadow */
+                                      div[data-testid="stDataFrame"],
+                                      div[data-testid="stDataFrame"] > div,
+                                      div[data-testid="stDataFrameResizable"],
+                                      div[data-testid="stDataFrame"] [data-testid="stDataFrameContainer"] {
+                                          box-shadow: none !important;
+                                          filter: none !important;
+                                          border-radius: 6px !important;
+                                      }
+                                      /* Inner cells / rows — no hover glow either */
+                                      div[data-testid="stDataFrame"] *,
+                                      div[data-testid="stDataFrameResizable"] * {
+                                          box-shadow: none !important;
+                                          filter: none !important;
+                                          text-shadow: none !important;
+                                      }
+                                      div[data-testid="stDataFrame"] [role="row"]:hover,
+                                      div[data-testid="stDataFrame"] [role="gridcell"]:hover,
+                                      div[data-testid="stDataFrameResizable"] [role="row"]:hover,
+                                      div[data-testid="stDataFrameResizable"] [role="gridcell"]:hover {
+                                          background-color: transparent !important;
+                                      }
+                                    </style>
+                                    """)
+                                    import pandas as _pd
+                                    _rows = []
+                                    _max_w = max((float(_r.get('weight', 0)) for _r in _triggered), default=1.0)
+                                    for _i, _r in enumerate(_triggered, 1):
+                                        _rows.append({
+                                            '#': _i,
+                                            'Rule ID': _r.get('rule_id', f'R{_i}'),
+                                            'Feature': _r.get('feature_name', '') or '—',
+                                            'Condition': _r.get('condition', ''),
+                                            'Weight': round(float(_r.get('weight', 0)), 3),
+                                            'Confidence': float(_r.get('confidence', 0)),
+                                            'Lift': round(float(_r.get('lift', 0)), 2),
+                                        })
+                                    _df = _pd.DataFrame(_rows)
+                                    # Use native Streamlit column_config (no matplotlib needed)
+                                    # to render Weight as a progress bar and Confidence as %.
+                                    st.dataframe(
+                                        _df,
+                                        use_container_width=True,
+                                        height=560,
+                                        hide_index=True,
+                                        column_config={
+                                            'Weight': st.column_config.ProgressColumn(
+                                                'Weight',
+                                                help='Rule weight (importance) — relative to the strongest triggered rule',
+                                                format='%.3f',
+                                                min_value=0.0,
+                                                max_value=float(_max_w) or 1.0,
+                                            ),
+                                            'Confidence': st.column_config.ProgressColumn(
+                                                'Confidence',
+                                                help='Posterior confidence of the rule (0–100%)',
+                                                format='%.1f%%',
+                                                min_value=0.0,
+                                                max_value=1.0,
+                                            ),
+                                        },
+                                    )
+                                else:
+                                    _empty = ('لم يتم تفعيل أي قاعدة (جميع المؤشرات ضمن الحدود الطبيعية).'
+                                              if lang == 'ar'
+                                              else 'No domain rule was triggered for this patient '
+                                                   '(all features within normal ranges).')
+                                    st.info(_empty)
+
+                            with tab3:
+                                st.markdown("**Complete Decision Process**")
+                                st.markdown("*From input to final decision*")
+                                fig_flow = create_simple_decision_tree_flow(final_decision)
+                                st.plotly_chart(fig_flow, use_container_width=True)
+                    
+                        st.markdown("---")
+
+                        # ========================================
+                        # PDF Report Download (Arabic-aware)
+                        # ========================================
+                        _pdf_label = ('⬇️ تحميل التقرير PDF' if lang == 'ar'
+                                      else '⬇️ Download PDF Report')
+                        _pdf_help = ('سيتم تنزيل التقرير بصيغة PDF مع دعم كامل للغة العربية'
+                                     if lang == 'ar'
+                                     else 'Generates an Arabic-aware PDF copy of this assessment')
+                        try:
+                            from core.pdf_report import generate_pdf_report
+                            _user_obj = st.session_state.get('user', {}) or {}
+                            _patient_name = (_user_obj.get('full_name')
+                                             or _user_obj.get('username', ''))
+                            _session_id_for_pdf = st.session_state.get('current_session_id', '')
+                            _facts_for_pdf = (st.session_state.chatbot.facts
+                                              if st.session_state.chatbot else {})
+                            _pdf_bytes = generate_pdf_report(
+                                final_assessment,
+                                lang=lang,
+                                patient_name=_patient_name,
+                                session_id=_session_id_for_pdf,
+                                facts=_facts_for_pdf,
+                            )
+                            _pdf_filename = (
+                                f"assessment_{_session_id_for_pdf or 'report'}.pdf"
+                            )
+                            st.download_button(
+                                label=_pdf_label,
+                                data=_pdf_bytes,
+                                file_name=_pdf_filename,
+                                mime='application/pdf',
+                                help=_pdf_help,
+                                use_container_width=True,
+                                type='primary',
+                            )
+                        except Exception as _pdf_err:
+                            st.warning(
+                                (f"تعذّر إنشاء PDF: {_pdf_err}"
+                                 if lang == 'ar'
+                                 else f"Could not build PDF: {_pdf_err}")
+                            )
+
+                        st.markdown("---")
+
+                        # ========================================
+                        # Section 5: Groq AI Enhancement (v7.0.0)
+                        # ========================================
+                        groq_interpretation = final_assessment.get('groq_interpretation')
+                        groq_recommendations = final_assessment.get('groq_recommendations')
+
+                        if groq_interpretation or groq_recommendations:
+                            st.markdown(f"### {t('section5_groq', lang)}")
+                            st.markdown(f"**{t('section5_subtitle', lang)}**")
+
+                            if groq_interpretation:
+                                st.html(f"""
+                                <div style='background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+                                            padding: 25px; border-radius: 16px; margin: 15px 0;
+                                            border-left: 5px solid #4caf50;
+                                            box-shadow: 0 4px 12px rgba(76,175,80,0.15);'>
+                                    <div style='font-size: 1.1rem; font-weight: 700; color: #2e7d32;
+                                                margin-bottom: 12px; display: flex; align-items: center; gap: 8px;'>
+                                        {t('ai_interpretation', lang)}
+                                    </div>
+                                    <div style='color: #1b5e20; font-size: 1.05rem; line-height: 1.8;'>
+                                        {groq_interpretation}
+                                    </div>
                                 </div>
-                                <div>{recs_html}</div>
-                            </div>
-                            """)
+                                """)
 
-                        st.caption(t('powered_by_groq', lang))
-                        st.markdown("---")
+                            if groq_recommendations:
+                                recs_html = "".join([
+                                    f"<div style='background: rgba(255,255,255,0.7); padding: 12px 16px; "
+                                    f"margin: 8px 0; border-radius: 10px; font-size: 1rem; "
+                                    f"border-left: 3px solid #7b1fa2;'>{rec}</div>"
+                                    for rec in groq_recommendations
+                                ])
+                                st.html(f"""
+                                <div style='background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+                                            padding: 25px; border-radius: 16px; margin: 15px 0;
+                                            border-left: 5px solid #9c27b0;
+                                            box-shadow: 0 4px 12px rgba(156,39,176,0.15);'>
+                                    <div style='font-size: 1.1rem; font-weight: 700; color: #6a1b9a;
+                                                margin-bottom: 12px;'>
+                                        {t('personalized_recommendations', lang)}
+                                    </div>
+                                    <div>{recs_html}</div>
+                                </div>
+                                """)
 
-                    elif not final_assessment.get('groq_available', False):
-                        st.info(t('groq_not_connected', lang))
-                        st.markdown("---")
+                            st.caption(t('powered_by_groq', lang))
+                            st.markdown("---")
 
-                    # Optional: Full JSON view
-                    with st.expander(t('show_full_json', lang), expanded=False):
-                        st.json(final_assessment)
+                        elif not final_assessment.get('groq_available', False):
+                            st.info(t('groq_not_connected', lang))
+                            st.markdown("---")
 
-                # The legacy "Show Final Report" button has been removed; the
-                # downloadable Arabic-aware PDF report now serves the same
-                # purpose in a much cleaner format.
+                        # Optional: Full JSON view
+                        with st.expander(t('show_full_json', lang), expanded=False):
+                            st.json(final_assessment)
 
+                    # The legacy "Show Final Report" button has been removed; the
+                    # downloadable Arabic-aware PDF report now serves the same
+                    # purpose in a much cleaner format.
+
+
+                    with tab_step:
+                        _render_step_by_step_demo(final_assessment, lang)
     # (لوحة المعلومات انتقلت للشريط الجانبي)
 
     # ═══ End-of-session longitudinal report ═══
