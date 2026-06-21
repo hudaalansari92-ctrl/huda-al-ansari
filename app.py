@@ -1310,11 +1310,36 @@ def _render_step_by_step_demo(final_assessment: dict, lang: str):
         summary = adv.get('summary', {}) or {}
         if summary:
             st.markdown(f"**{t('demo_s2_examples_label', lang)}**")
-            example_cols = st.columns(2)
-            entries = list(summary.items())[:6]
-            for i, (k, v) in enumerate(entries):
-                with example_cols[i % 2]:
-                    st.markdown(f"• **{k}** → `{v}`")
+            # Human-readable Arabic labels for the curated summary keys.
+            label_map_ar = {
+                'age_category':      'فئة العمر',
+                'cholesterol_level': 'مستوى الكوليسترول',
+                'bp_stage':          'مرحلة ضغط الدم',
+                'exercise_capacity': 'القدرة على الجهد',
+                'framingham_score':  'مؤشّر فرامنغهام',
+                'framingham_risk':   'تصنيف خطر فرامنغهام',
+                'st_depression':     'انخفاض ST',
+            }
+            label_map_en = {
+                'age_category':      'Age category',
+                'cholesterol_level': 'Cholesterol level',
+                'bp_stage':          'Blood-pressure stage',
+                'exercise_capacity': 'Exercise capacity',
+                'framingham_score':  'Framingham score',
+                'framingham_risk':   'Framingham risk',
+                'st_depression':     'ST depression',
+            }
+            labels = label_map_ar if lang == 'ar' else label_map_en
+
+            rows = [[labels.get(k, k), str(v)] for k, v in summary.items()]
+            st.html(_demo_html_table(
+                rows,
+                headers=[
+                    'المؤشّر' if lang == 'ar' else 'Indicator',
+                    'القيمة' if lang == 'ar' else 'Value',
+                ],
+                lang=lang,
+            ))
 
     elif cur == 3:
         st.markdown(f"### {t('demo_s3_title', lang)}")
